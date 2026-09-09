@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { useRouter } from "next/navigation";
 import { Crest, Flag } from "./crest";
 import { LiveBadge } from "./live-badge";
@@ -141,7 +141,7 @@ export function MatchDetailView({
           </button>
 
           <h1 className="flex min-w-0 flex-1 items-center">
-            <Link
+            <NavLink
               href={`/league/${match.league.id}`}
               className="flex min-w-0 items-center gap-2 transition-colors hover:text-accent"
             >
@@ -149,7 +149,7 @@ export function MatchDetailView({
               <span className="truncate text-sm font-semibold text-foreground">
                 {match.league.name}
               </span>
-            </Link>
+            </NavLink>
           </h1>
         </div>
       </header>

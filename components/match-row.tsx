@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { Crest, Flag } from "./crest";
 import { LiveBadge } from "./live-badge";
 import { useTimezone } from "./timezone-provider";
@@ -56,7 +56,7 @@ export function MatchRow({ match, nowUnix, reportedAtUnix }: MatchRowProps) {
 
   return (
     <li className="border-b border-divider last:border-b-0">
-      <Link
+      <NavLink
         href={`/match/${match.id}`}
         aria-label={`${match.home.name} ${t.vs} ${match.away.name}`}
         className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-surface-hover active:bg-surface-hover sm:px-4"
@@ -121,7 +121,7 @@ export function MatchRow({ match, nowUnix, reportedAtUnix }: MatchRowProps) {
           countryCode={match.away.countryCode}
           align="end"
         />
-      </Link>
+      </NavLink>
     </li>
   );
 }

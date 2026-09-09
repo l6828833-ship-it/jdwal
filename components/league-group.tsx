@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { Crest } from "./crest";
 import { MatchRow } from "./match-row";
 import { t } from "@/lib/i18n";
@@ -49,7 +49,7 @@ export function LeagueGroup({
       >
         {/* Crest + name link to the league page; the trailing standings icon
             is an explicit affordance for the table, as requested. */}
-        <Link
+        <NavLink
           href={`/league/${group.league.id}`}
           className="flex items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-surface-hover sm:px-4"
         >
@@ -61,7 +61,7 @@ export function LeagueGroup({
             <StandingsIcon />
             {t.standings}
           </span>
-        </Link>
+        </NavLink>
       </header>
 
       <ul>

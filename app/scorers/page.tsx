@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { Suspense } from "react";
 import { Crest } from "@/components/crest";
 import { ScorersTable } from "@/components/scorers-table";
@@ -75,7 +75,7 @@ export default async function ScorersPage(props: PageProps<"/scorers">) {
           {tabs.map((league) => {
             const active = league.id === selected?.id;
             return (
-              <Link
+              <NavLink
                 key={league.id}
                 href={`/scorers?league=${league.id}`}
                 aria-current={active ? "page" : undefined}
@@ -87,7 +87,7 @@ export default async function ScorersPage(props: PageProps<"/scorers">) {
               >
                 <Crest src={league.logo} name={league.name} size={16} />
                 {leagueNameAr(league.id, league.nameOriginal)}
-              </Link>
+              </NavLink>
             );
           })}
         </div>

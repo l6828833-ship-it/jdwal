@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { notFound } from "next/navigation";
 import { Crest, Flag } from "@/components/crest";
 import { BackHeader } from "@/components/back-header";
@@ -189,12 +189,12 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
         }
       />
 
-      <Link
+      <NavLink
         href={`/scorers?league=${leagueId}`}
         className="self-start rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-semibold text-muted transition-colors hover:text-foreground"
       >
         {t.topScorers}
-      </Link>
+      </NavLink>
     </div>
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { usePathname } from "next/navigation";
 import { t } from "@/lib/i18n";
 
@@ -28,7 +28,7 @@ export function BottomNav() {
           const Icon = tab.icon;
           return (
             <li key={tab.href} className="flex-1">
-              <Link
+              <NavLink
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-16 flex-col items-center justify-center gap-1 text-[0.7rem] font-medium transition-colors ${
@@ -37,7 +37,7 @@ export function BottomNav() {
               >
                 <Icon className="size-6" filled={active} />
                 <span>{tab.label}</span>
-              </Link>
+              </NavLink>
             </li>
           );
         })}

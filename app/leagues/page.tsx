@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { Crest, Flag } from "@/components/crest";
 import { ApiKeyNotice, EmptyState, LoadErrorNotice } from "@/components/notices";
 import { getLeagues, hasApiKey } from "@/lib/provider";
@@ -106,7 +106,7 @@ export default async function LeaguesPage() {
           <ul className="overflow-hidden rounded-xl border border-border bg-surface">
             {leagues.map((league) => (
               <li key={league.id} className="border-b border-divider last:border-b-0">
-                <Link
+                <NavLink
                   href={`/league/${league.id}`}
                   className={`flex items-center gap-3 border-s-2 px-3 py-3 transition-colors hover:bg-surface-hover sm:px-4 ${
                     league.isPopular ? "border-s-accent" : "border-s-transparent"
@@ -122,7 +122,7 @@ export default async function LeaguesPage() {
                       {countryNameAr(league.country)}
                     </span>
                   </span>
-                </Link>
+                </NavLink>
               </li>
             ))}
           </ul>

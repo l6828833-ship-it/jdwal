@@ -8,6 +8,7 @@ import { LivePill } from "./live-badge";
 import { TopBar } from "./top-bar";
 import { useTimezone } from "./timezone-provider";
 import { useServerNow } from "./use-server-now";
+import { LeagueGroupSkeleton, LoadingAnnounce } from "./skeleton";
 import { groupByLeague, isPopularMatch } from "@/lib/grouping";
 import { LIVE_POLL_SECONDS } from "@/lib/config";
 import { toDateKey } from "@/lib/date";
@@ -321,7 +322,24 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
       </div>
 
       <main className="flex flex-1 flex-col gap-3 px-3 pb-6 sm:px-4">
-        {groups.length === 0 ? (
+        {/**
+         * Changing the date is the one interaction that does NOT navigate — it
+         * refetches in place — so the browser shows no loading indicator for it.
+         * Everything else in the app is a real document navigation and gets one
+         * for free (see components/nav-link.tsx).
+         *
+         * So this case has to speak for itself, and the same skeleton the routes
+         * use says "working" far more clearly than a line of text in a box did.
+         * Identical shape, so the list does not jump when the day arrives.
+         */}
+        {loading ? (
+          <>
+            <LoadingAnnounce label={t.loading} />
+            <LeagueGroupSkeleton rows={4} />
+            <LeagueGroupSkeleton rows={3} />
+            <LeagueGroupSkeleton rows={2} />
+          </>
+        ) : groups.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted">
             {emptyMessage}
           </p>
