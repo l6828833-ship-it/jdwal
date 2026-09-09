@@ -1,18 +1,10 @@
 # Netlify config for the jdwal (Next.js 16) frontend.
 #
-# Netlify supports Next.js 16 with zero extra config via its OpenNext adapter —
-# no plugin block is needed. Server rendering, API routes and image optimization
-# all work out of the box.
-#
-# Deploy: push this repo to GitHub, then in Netlify choose "Add new site" ->
-# "Import an existing project" and pick the repo. Netlify auto-detects Next.js.
-# Set the environment variables below in the Netlify UI (Site settings ->
-# Environment variables) — especially SELFHOSTED_BASE_URL pointing at your
-# Render backend URL.
-
-[build]
-  command = "next build"
-  publish = ".next"
+# Netlify supports Next.js 16 with zero extra config via its OpenNext adapter.
+# It detects Next.js automatically and manages the build output and routing
+# itself, so we must NOT set `publish` — pinning it to ".next" makes Netlify
+# treat the app as a plain static folder, which serves 404 for every route.
+# Only the Node version is pinned here; the adapter does the rest.
 
 [build.environment]
   # Next.js 16 requires Node >= 20.9. Use an LTS release comfortably above that.
