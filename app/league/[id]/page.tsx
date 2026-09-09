@@ -142,12 +142,47 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
   // A cup shows the bracket + matches; a league shows the table + matches.
   const standingsPanel = (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-accent-soft px-3.5 py-1.5 text-xs font-semibold text-accent">
-          {result?.standings.source === "computed"
-            ? t.standingsLeaguePhase
-            : t.standings}
-        </span>
+      {/* `flex-wrap` because a long phase label plus the scorers link plus the
+          season picker can exceed a narrow screen; wrapping is preferable to
+          either squashing the pills or scrolling them out of reach. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-accent-soft px-3.5 py-1.5 text-xs font-semibold text-accent">
+            {result?.standings.source === "computed"
+              ? t.standingsLeaguePhase
+              : t.standings}
+          </span>
+
+          {/* The scorers link sits beside the table's own label because the two
+              are the same kind of thing — the league's rankings — so they belong
+              together as a pair to choose between. Below the table it was easy
+              to miss entirely on a full 18-team league, where it fell past the
+              fold.
+
+              Styled as a distinctly tappable pill with a chevron: adjacent to a
+              plain label, a link needs to look like it goes somewhere, or it
+              reads as a second inert badge. */}
+          <NavLink
+            href={`/scorers?league=${leagueId}`}
+            className="flex items-center gap-1 rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+          >
+            {t.topScorers}
+            {/* Points left: the "forward" direction in RTL. */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-3"
+              aria-hidden="true"
+            >
+              <path d="m15 6-6 6 6 6" />
+            </svg>
+          </NavLink>
+        </div>
+
         {/* Only offer the season picker on a backend that actually serves past
             seasons. LiveScore / BBC / ESPN return the current table regardless
             of the season param, so the picker is hidden there rather than
@@ -188,13 +223,6 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
             : undefined
         }
       />
-
-      <NavLink
-        href={`/scorers?league=${leagueId}`}
-        className="self-start rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-semibold text-muted transition-colors hover:text-foreground"
-      >
-        {t.topScorers}
-      </NavLink>
     </div>
   );
 
