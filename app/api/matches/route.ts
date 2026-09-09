@@ -3,7 +3,7 @@ import { getMatchesByDate } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
 import { isValidDateKey, dateKeyDiff } from "@/lib/date";
 import { resolveRequestTime } from "@/lib/geo-timezone";
-import { DATE_RANGE_DAYS, LIVE_POLL_SECONDS } from "@/lib/config";
+import { DATE_RANGE_DAYS, LIVE_CACHE_CONTROL } from "@/lib/config";
 import type { MatchesPayload } from "@/lib/types";
 
 /**
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     return Response.json(payload, {
       headers: {
         // Allow a shared CDN/proxy layer to absorb repeat polls too.
-        "Cache-Control": `public, s-maxage=${LIVE_POLL_SECONDS}, stale-while-revalidate=${LIVE_POLL_SECONDS * 4}`,
+        "Cache-Control": LIVE_CACHE_CONTROL,
         /**
          * Key the shared cache on the `date` query param.
          *

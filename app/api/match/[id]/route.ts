@@ -1,6 +1,6 @@
 import { getMatchDetail, isPlanGatedError } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
-import { LIVE_POLL_SECONDS } from "@/lib/config";
+import { LIVE_CACHE_CONTROL } from "@/lib/config";
 
 /**
  * One match, including stats. Polled by the detail page on the same interval as
@@ -25,7 +25,7 @@ export async function GET(
 
     return Response.json(result, {
       headers: {
-        "Cache-Control": `public, s-maxage=${LIVE_POLL_SECONDS}, stale-while-revalidate=${LIVE_POLL_SECONDS * 4}`,
+        "Cache-Control": LIVE_CACHE_CONTROL,
       },
     });
   } catch (error) {

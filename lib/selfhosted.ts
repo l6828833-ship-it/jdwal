@@ -248,7 +248,19 @@ async function apiFetch<T>(
       // Caching is handled in lib/cache.ts so the backend's quota can be
       // accounted for precisely; Next's fetch cache must not double-layer.
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      /**
+       * Sized to fit inside the host's function budget, which is the real
+       * constraint — Netlify kills a synchronous invocation at 10s by default,
+       * and that ceiling covers the ENTIRE streamed response.
+       *
+       * The old 15s could not fit: a single slow call already outran the budget,
+       * so the function was killed mid-stream and the browser got a truncated
+       * RSC payload (React #412 "Connection closed") instead of a handled error.
+       * Failing at 6s is strictly better, because `getCached` serves the last
+       * good value on error — so a slow backend degrades to slightly stale data
+       * on a page that renders, rather than a page that dies.
+       */
+      signal: AbortSignal.timeout(6_000),
     });
   } catch (error) {
     throw new SelfHostedError(
@@ -826,33 +838,47 @@ export async function getMatchesByDate(
   const isToday = dateKey === todayKeyValue;
   const live = canBeLive(dateKey);
 
-  const cached = await getCached(
-    `sh-matches:${dateKey}`,
-    async () =>
-      asFixtureList(
-        await apiFetch<unknown>("/fixtures/getFixtures", {
-          date: dateKey,
-          // Ask for UTC and convert for display ourselves, so one cache entry
-          // serves every reader regardless of their timezone.
-          timezone: "UTC",
-        }),
-      ),
-    {
-      // A date that can still be live never gets the 24-hour "past" lifetime,
-      // whatever the viewer's calendar says.
-      ttlSeconds: live
-        ? CACHE_TTL.today
-        : dateKey < todayKeyValue
-          ? CACHE_TTL.past
-          : CACHE_TTL.future,
-      // A background poll must never outrank a user's own action for budget.
-      priority: background ? "background" : isToday || live ? "high" : "normal",
-    },
-  );
-
-  // The overlay is what keeps an in-progress score and minute fresh, so it runs
-  // for any date that could hold a live match — not only the server's "today".
-  const liveMap = live ? await getLiveMap() : new Map<number, RawFixture>();
+  /**
+   * The day list and the live overlay are INDEPENDENT lookups, so they are
+   * overlapped rather than awaited back to back.
+   *
+   * This is a hosting constraint, not a micro-optimisation. A serverless
+   * invocation has a hard wall-clock budget (10s on Netlify's default), and it
+   * applies to the whole streamed response. Two sequential upstream calls put
+   * twice the per-call timeout on the critical path, and a render that outruns
+   * the budget is killed MID-STREAM — which reaches the browser as a truncated
+   * RSC payload, i.e. React error #412 "Connection closed", not as a handled
+   * error. Overlapping them halves the worst case.
+   */
+  const [cached, liveMap] = await Promise.all([
+    getCached(
+      `sh-matches:${dateKey}`,
+      async () =>
+        asFixtureList(
+          await apiFetch<unknown>("/fixtures/getFixtures", {
+            date: dateKey,
+            // Ask for UTC and convert for display ourselves, so one cache entry
+            // serves every reader regardless of their timezone.
+            timezone: "UTC",
+          }),
+        ),
+      {
+        // A date that can still be live never gets the 24-hour "past" lifetime,
+        // whatever the viewer's calendar says.
+        ttlSeconds: live
+          ? CACHE_TTL.today
+          : dateKey < todayKeyValue
+            ? CACHE_TTL.past
+            : CACHE_TTL.future,
+        // A background poll must never outrank a user's own action for budget.
+        priority: background ? "background" : isToday || live ? "high" : "normal",
+      },
+    ),
+    // The overlay is what keeps an in-progress score and minute fresh, so it
+    // runs for any date that could hold a live match — not only the server's
+    // "today".
+    live ? getLiveMap() : Promise.resolve(new Map<number, RawFixture>()),
+  ]);
 
   const matches = cached.value.map((raw) =>
     normalizeMatch(mergeLive(raw, liveMap.get(raw.fixture?.id ?? -1))),
@@ -874,23 +900,28 @@ export async function getMatchesByDate(
 export async function getMatchDetail(
   matchId: number,
 ): Promise<{ match: MatchDetail; meta: ApiMeta; nowUnix: number } | null> {
-  const cached = await getCached(
-    `sh-match:${matchId}`,
-    async () => {
-      const body = await apiFetch<RawFixture>("/fixtures/getFixtureById", {
-        id: matchId,
-      });
-      return isEmpty(body) ? null : body;
-    },
-    { ttlSeconds: CACHE_TTL.matchDetail, priority: "high" },
-  );
+  // Detail and the live overlay are independent, so they are overlapped for the
+  // same reason as getMatchesByDate: two sequential upstream calls put twice the
+  // per-call timeout on a render that the host will kill mid-stream.
+  const [cached, liveMap] = await Promise.all([
+    getCached(
+      `sh-match:${matchId}`,
+      async () => {
+        const body = await apiFetch<RawFixture>("/fixtures/getFixtureById", {
+          id: matchId,
+        });
+        return isEmpty(body) ? null : body;
+      },
+      { ttlSeconds: CACHE_TTL.matchDetail, priority: "high" },
+    ),
+    getLiveMap(),
+  ]);
 
   const raw = cached.value;
   if (!raw?.fixture?.id) return null;
 
-  // Detail is cached for a couple of minutes; overlay the live feed so an
-  // in-progress score is never staler than the poll interval.
-  const liveMap = await getLiveMap();
+  // Detail is cached for a couple of minutes; the overlay keeps an in-progress
+  // score from ever being staler than the poll interval.
   const merged = mergeLive(raw, liveMap.get(matchId));
 
   return {

@@ -351,14 +351,36 @@ export function leaguePopularity(
   return { rank: Number.POSITIVE_INFINITY, entry: null };
 }
 
-/** Live polling interval, shared by the server cache TTL and the client. */
+/**
+ * Live polling interval, shared by the server cache TTL and the client.
+ *
+ * The DEFAULT is what production runs on: `NEXT_PUBLIC_*` is inlined at build
+ * time, so a value set only in a local `.env.local` (which is gitignored, and
+ * never reaches the deploy) does nothing there. The old 90s default was sized
+ * for a 100-request/day free tier, which no longer describes the shipped
+ * backend: the self-hosted provider has no request quota, and lib/cache.ts means
+ * every browser polling shares ONE upstream fetch per interval regardless of how
+ * many are connected. 90s just made the live minute update in coarse jumps.
+ *
+ * To change it in production, set NEXT_PUBLIC_LIVE_POLL_SECONDS at BUILD time.
+ */
 export const LIVE_POLL_SECONDS = (() => {
   const raw = Number(process.env.NEXT_PUBLIC_LIVE_POLL_SECONDS);
-  // Default 90s: on a 100/day free tier, 60s can drain the budget inside a
-  // single two-hour match window. Lower it once on a paid tier.
-  if (!Number.isFinite(raw) || raw <= 0) return 90;
+  if (!Number.isFinite(raw) || raw <= 0) return 30;
   return Math.max(15, Math.round(raw));
 })();
+
+/**
+ * `Cache-Control` for the live endpoints.
+ *
+ * `stale-while-revalidate` used to be four times the poll interval, which on the
+ * 90s default let a CDN serve a payload up to 7.5 MINUTES old. That payload
+ * carries the `nowUnix` from when it was built, so the client was pacing a live
+ * match off a timestamp from several minutes ago. A short window still absorbs
+ * repeat polls and shields the origin, without pretending stale scores are fine.
+ */
+export const LIVE_CACHE_CONTROL =
+  `public, s-maxage=${LIVE_POLL_SECONDS}, stale-while-revalidate=${LIVE_POLL_SECONDS}`;
 
 /**
  * Cache lifetimes in seconds, tuned against a 1000 request/month budget.
