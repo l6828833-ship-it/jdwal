@@ -84,8 +84,15 @@ export interface Broadcast {
    * it is rather than implying a precision it does not have.
    */
   precise: boolean;
-  /** Always "editorial" so the UI can be honest about provenance. */
-  source: "editorial";
+  /**
+   * Where the value came from, so the UI can be honest about provenance.
+   *
+   * "provider" is real per-fixture data (365scores `tvNetworks`, forwarded by the
+   * self-hosted backend). "editorial" is the hand-maintained mapping in
+   * lib/broadcast.ts, which the app falls back to because no mainstream football
+   * API exposes broadcast information.
+   */
+  source: "provider" | "editorial";
 }
 
 export interface MatchRound {

@@ -313,6 +313,18 @@ interface RawFixtureCore {
   date?: string;
   timestamp?: number;
   venue?: { id?: number | null; name?: string | null; city?: string | null };
+  /**
+   * Real broadcasters for THIS fixture, e.g. ["beIN Sport 1 HD"].
+   *
+   * Supplied by the self-hosted backend from 365scores' `tvNetworks`, and the
+   * only genuine per-match channel data available — no mainstream football API
+   * exposes broadcast info, which is why lib/broadcast.ts exists as a fallback.
+   *
+   * Present only on the single-fixture endpoint: the upstream games LIST carries
+   * a bare `hasTVNetworks` flag with a null array, so channels cannot be shown on
+   * the fixture list without one request per match.
+   */
+  tv_channels?: string[] | null;
   status?: { long?: string; short?: string; elapsed?: number | null };
 }
 
@@ -583,7 +595,14 @@ function normalizeMatch(raw: RawFixture): Match {
       roundId: null,
     },
     referee: normalizeReferee(core?.referee),
-    broadcast: resolveBroadcast(core?.id ?? 0, league.id, league.nameOriginal),
+    /**
+     * Real channels from the backend when it has them, the editorial table
+     * otherwise. Passing them in keeps the precedence in one place — see
+     * `resolveBroadcast` — rather than deciding it at each call site.
+     */
+    broadcast: resolveBroadcast(core?.id ?? 0, league.id, league.nameOriginal, {
+      channels: core?.tv_channels ?? null,
+    }),
   };
 }
 

@@ -321,11 +321,18 @@ export function MatchDetailView({
                 )}
               </dl>
 
+              {/**
+               * The caveat has to match the provenance. Three distinct cases,
+               * and calling real provider data "editorial" would understate it
+               * just as badly as calling a guess authoritative overstates it.
+               */}
               {match.broadcast && (
                 <p className="border-t border-divider px-4 py-2 text-[0.65rem] leading-relaxed text-muted-dim">
-                  {match.broadcast.precise
-                    ? `بيانات القناة والمعلق تحريرية لمنطقة ${BROADCAST_REGION} وليست من مزود البيانات، وقد تتغير.`
-                    : `الشبكة الناقلة لمنطقة ${BROADCAST_REGION}. القناة المحددة تختلف بين المباريات المتزامنة ولا يوفرها مزود البيانات.`}
+                  {match.broadcast.source === "provider"
+                    ? `القناة الناقلة لمنطقة ${BROADCAST_REGION} حسب مزود البيانات، وقد تتغير.`
+                    : match.broadcast.precise
+                      ? `بيانات القناة والمعلق تحريرية لمنطقة ${BROADCAST_REGION} وليست من مزود البيانات، وقد تتغير.`
+                      : `الشبكة الناقلة لمنطقة ${BROADCAST_REGION}. القناة المحددة تختلف بين المباريات المتزامنة ولا يوفرها مزود البيانات لقوائم المباريات.`}
                 </p>
               )}
             </section>

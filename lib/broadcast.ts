@@ -138,21 +138,71 @@ const MATCH_OVERRIDES: Record<
 > = {};
 
 /**
- * Resolve the broadcast line for a match, or null when nothing is configured.
+ * Clean up a broadcaster name for display.
  *
- * Resolution order: per-match override, league key, league name pattern.
+ * Upstream names are broadcast branding: "beIN Sport 1 HD", "beIN Sports 3 HD" —
+ * inconsistent in both pluralisation and the "HD" suffix, which is noise now that
+ * SD simulcasts are gone. Normalising gives "beIN SPORTS 1" for all of them, so a
+ * list of channels reads as one family rather than as several spellings.
  *
- * `channel` is what the UI labels "القناة الناقلة". It carries the specific
- * channel when one is genuinely known for THIS fixture, and otherwise the
- * network — so two simultaneous matches read "beIN SPORTS" rather than both
- * claiming "beIN SPORTS 1". `precise` tells the UI which of the two it got, so it
- * can word the caveat honestly instead of implying a specific channel either way.
+ * Anything that is not a recognised beIN pattern is passed through untouched: it
+ * is a real channel name from the provider and guessing at its formatting would
+ * be more likely to mangle it than improve it.
+ */
+function tidyChannel(name: string): string {
+  const beIn = /^be\s*in\s*sports?\s*(\d+)\s*(?:hd|sd)?$/i.exec(name.trim());
+  if (beIn) return `beIN SPORTS ${beIn[1]}`;
+  return name.trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Resolve the broadcast line for a match, or null when nothing is known.
+ *
+ * Resolution order, most specific first:
+ *
+ *   1. REAL channels from the provider (`known.channels`). 365scores exposes
+ *      per-fixture `tvNetworks`, which the self-hosted backend forwards as
+ *      `tv_channels`. This is actual data, so it wins outright — it is the only
+ *      thing here that can correctly say one of nine simultaneous Champions
+ *      League matches is on beIN SPORTS 3 rather than 1.
+ *   2. A hand-entered per-match override.
+ *   3. The competition entry: a specific channel only if it is `exclusive`,
+ *      otherwise the network alone.
+ *
+ * `channel` is what the UI labels. It carries the specific channel when one is
+ * genuinely known for THIS fixture, and otherwise the network — so two
+ * simultaneous matches read "beIN SPORTS" rather than both claiming "beIN SPORTS
+ * 1". `precise` tells the UI which of the two it got, so it can word the caveat
+ * honestly instead of implying a precision it does not have.
+ *
+ * @param known Per-fixture facts from the provider. `channels` is empty on a
+ *   fixture LIST response, which does not carry broadcasters — so the list falls
+ *   back to the network and only the detail page shows the real channel.
  */
 export function resolveBroadcast(
   matchId: number,
   leagueId: number,
   leagueName: string,
+  known: { channels?: string[] | null } = {},
 ): Broadcast | null {
+  const real = (known.channels ?? [])
+    .filter((name): name is string => typeof name === "string" && name.trim() !== "")
+    .map(tidyChannel);
+
+  if (real.length > 0) {
+    return {
+      // Several channels can carry one match (a regional split, or a
+      // simulcast). Listing all of them is more useful than picking one.
+      channel: [...new Set(real)].join(" • "),
+      // The provider gives channels, not commentators. An override may still
+      // supply one; the competition table must not, or it repeats across every
+      // match in the competition.
+      commentator: MATCH_OVERRIDES[matchId]?.commentator ?? null,
+      precise: true,
+      source: "provider",
+    };
+  }
+
   const override = MATCH_OVERRIDES[matchId];
   if (override) {
     return {
