@@ -15,5 +15,5 @@
   publish = ".next"
 
 [build.environment]
-  # Match the Node version the app is developed against.
-  NODE_VERSION = "20.6.0"
+  # Next.js 16 requires Node >= 20.9. Use an LTS release comfortably above that.
+  NODE_VERSION = "20.18.0"
