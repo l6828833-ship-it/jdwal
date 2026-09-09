@@ -4,6 +4,7 @@ import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
 import { TimezoneProvider } from "@/components/timezone-provider";
 import { resolveTimezoneFromRequest } from "@/lib/geo-timezone";
+import { SITE_URL } from "@/lib/config";
 import { t } from "@/lib/i18n";
 
 const cairo = Cairo({
@@ -13,9 +14,66 @@ const cairo = Cairo({
   weight: ["400", "500", "600", "700"],
 });
 
+/**
+ * SEO.
+ *
+ * Targets the two primary keywords — "jdwal" (the brand, Latin) and
+ * "جدول مباريات" (Arabic: "match schedule") — in the title, description and
+ * keyword set. `title.template` appends the brand to every inner page's title
+ * (e.g. "الدوري الإنجليزي | جدول مباريات") so every page reinforces the terms.
+ *
+ * `metadataBase` makes the relative Open Graph image and canonical URLs
+ * absolute. Update NEXT_PUBLIC_SITE_URL once a custom domain is live.
+ */
 export const metadata: Metadata = {
-  title: `${t.appName} — ${t.appTagline}`,
-  description: "نتائج مباريات كرة القدم المباشرة، جدول المباريات والمسابقات الكبرى.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "جدول مباريات اليوم | jdwal - نتائج مباشرة",
+    template: "%s | جدول مباريات - jdwal",
+  },
+  description:
+    "jdwal (جدول) — جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم: " +
+    "الدوريات الكبرى ودوري أبطال أوروبا والدوريات العربية مع الترتيب والهدافين.",
+  keywords: [
+    "jdwal",
+    "جدول",
+    "جدول مباريات",
+    "جدول مباريات اليوم",
+    "مباريات اليوم",
+    "نتائج مباشرة",
+    "ترتيب الدوريات",
+    "الهدافين",
+    "دوري أبطال أوروبا",
+    "الدوري الإنجليزي",
+    "الدوري السعودي",
+  ],
+  applicationName: "jdwal",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "jdwal",
+    locale: "ar_AR",
+    url: SITE_URL,
+    title: "جدول مباريات اليوم | jdwal - نتائج مباشرة",
+    description:
+      "جدول مباريات اليوم والغد، نتائج مباشرة، ترتيب الدوريات والهدافين.",
+  },
+  twitter: {
+    card: "summary",
+    title: "جدول مباريات اليوم | jdwal",
+    description: "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  // Google Search Console verification. Paste the token from the
+  // "HTML tag" verification method (the content="..." value) here, or set
+  // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION in the environment.
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export const viewport: Viewport = {
@@ -28,9 +86,26 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // false and the provider falls back to the browser's own zone on the client.
   const { timezone, resolved } = await resolveTimezoneFromRequest();
 
+  // WebSite structured data: tells Google the site's name is "jdwal" and its
+  // primary purpose ("جدول مباريات"), which strengthens brand-term ranking.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "jdwal",
+    alternateName: ["جدول", "جدول مباريات"],
+    url: SITE_URL,
+    description:
+      "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم مع الترتيب والهدافين.",
+    inLanguage: "ar",
+  };
+
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} h-full`}>
       <body className="min-h-full bg-background text-foreground antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <TimezoneProvider serverTimezone={timezone} resolvedFromIp={resolved}>
           {/* The bottom nav is fixed at every breakpoint, so this padding must
               apply at every breakpoint too, or the last row hides behind it. */}

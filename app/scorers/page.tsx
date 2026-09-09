@@ -10,7 +10,11 @@ import type { LeagueScorers, LeagueSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: `${t.topScorers} — ${t.appName}` };
+export const metadata = {
+  title: t.topScorers,
+  description:
+    "ترتيب الهدافين وصناع الأهداف في الدوريات الكبرى ودوري أبطال أوروبا.",
+};
 
 /**
  * Top scorers, browsed by competition.

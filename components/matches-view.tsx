@@ -64,12 +64,25 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
   // advanced locally afterwards by the clock tick below.
   const [nowUnix, setNowUnix] = useState(initialPayload.nowUnix);
 
-  /** Guards against a slow response for an old date overwriting a newer one. */
-  const requestSeq = useRef(0);
+  /**
+   * The day the newest request was made for.
+   *
+   * Guards against a slow response for an OLD day overwriting a newer one —
+   * but it must key on the DATE, not on a bare counter. With a counter, a
+   * background poll firing at the same moment as a day change bumped the
+   * sequence and the navigation's own response was then thrown away, so
+   * `payload.date` never caught up and the view sat on "loading" forever
+   * (including when returning to today). Comparing the target date instead
+   * means a response is accepted whenever it is still the day we want, no
+   * matter how many polls raced alongside it.
+   */
+  const wantedDate = useRef(initialPayload.date);
 
   const load = useCallback(
     async (targetDate: string, background = false) => {
-      const seq = ++requestSeq.current;
+      // A background poll must not steal the "wanted day" from a navigation
+      // that is still in flight; it only ever refreshes the day on screen.
+      if (!background) wantedDate.current = targetDate;
 
       try {
         const url =
@@ -83,22 +96,22 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
           // The daily request budget is a distinct, expected condition — show a
           // clear Arabic notice rather than a generic failure.
           if (response.status === 503 && body?.code === "budget_exhausted") {
-            if (seq === requestSeq.current) setError(t.quotaNotice);
+            if (targetDate === wantedDate.current) setError(t.quotaNotice);
             return;
           }
           throw new Error(body?.error || `HTTP ${response.status}`);
         }
         const next = (await response.json()) as MatchesPayload;
 
-        // Ignore responses that arrived out of order or for a stale date.
-        if (seq !== requestSeq.current) return;
+        // Accept only if this is still the day the user is looking at.
+        if (next.date !== wantedDate.current) return;
 
         // Replace state in one commit so the list never renders empty midway.
         setPayload(next);
         setNowUnix(next.nowUnix);
         setError(null);
       } catch (cause) {
-        if (seq !== requestSeq.current) return;
+        if (targetDate !== wantedDate.current) return;
         setError(cause instanceof Error ? cause.message : t.loadFailed);
       }
     },
@@ -181,7 +194,12 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
 
     const start = () => {
       if (timer) return;
-      timer = setInterval(() => void load(date), LIVE_POLL_SECONDS * 1000);
+      // background=true: a poll refreshes the day on screen and must never
+      // take over the "wanted day" from a navigation still in flight.
+      timer = setInterval(
+        () => void load(date, true),
+        LIVE_POLL_SECONDS * 1000,
+      );
     };
     const stop = () => {
       if (timer) clearInterval(timer);
@@ -189,7 +207,7 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        void load(date);
+        void load(date, true);
         start();
       } else {
         stop();
