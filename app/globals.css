@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   Dark theme tokens. Single accent (blue) for active + live states.
+   --------------------------------------------------------------- */
+:root {
+  --background: #0d0d0d;
+  --surface: #131313;
+  --surface-raised: #181818;
+  --surface-hover: #1c1c1c;
+  --border: #242424;
+  --divider: #1f1f1f;
+
+  --foreground: #f2f2f2;
+  --muted: #9b9b9b;
+  --muted-dim: #6e6e6e;
+
+  --accent: #2f81f7;
+  --accent-soft: #16283f;
+  --live: #22c55e;
+  --live-red: #ef4444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-dim: var(--muted-dim);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-live: var(--live);
+  --color-live-red: var(--live-red);
+
+  --font-sans: var(--font-arabic);
+}
+
+html {
+  color-scheme: dark;
+  /* Keep the scrollbar gutter reserved so polling-driven list length
+     changes never shift the layout horizontally. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-arabic), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scores, clocks and minutes use fixed-width digits so a 0->1 or 9->10
+   change never reflows the row during a live poll. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Pulsing dot on the LIVE badge. */
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.72);
+  }
+}
+
+.live-dot {
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+/* Soft halo behind the live dot on the LIVE (n) pill. */
+@keyframes live-halo {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.8);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+.live-halo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--live);
+  animation: live-halo 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot,
+  .live-halo::after {
+    animation: none;
+  }
+}
+
+/* Hide scrollbars on the horizontal date strip while keeping it scrollable. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
