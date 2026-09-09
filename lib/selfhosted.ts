@@ -753,12 +753,39 @@ async function getLiveMap(): Promise<Map<number, RawFixture>> {
 /** Overlay the live feed's status, clock and score onto a cached fixture. */
 function mergeLive(base: RawFixture, live: RawFixture | undefined): RawFixture {
   if (!live) return base;
-  return {
+
+  const merged: RawFixture = {
     ...base,
     fixture: { ...base.fixture, ...live.fixture },
     goals: live.goals ?? base.goals,
     score: live.score ?? base.score,
   };
+
+  /**
+   * Restore detail-only fields the overlay just erased.
+   *
+   * The live feed is a LIST response, and a list cannot carry everything the
+   * single-fixture endpoint does. The spread above is blanket, so any field the
+   * list includes as an EMPTY value — rather than omitting outright — silently
+   * overwrites a richer value that was already there. A missing key is harmless;
+   * a present-but-empty one is not.
+   *
+   * `tv_channels` is exactly that: the backend sets it on every fixture it shapes,
+   * and upstream only returns broadcasters for a single game, so the list reports
+   * `[]`. The effect was that a match showed its real channel ("beIN SPORTS 1")
+   * right up until kickoff, then dropped to the generic network the moment it went
+   * live and the overlay started running — the one time a viewer most wants to
+   * know where to watch it.
+   */
+  if (
+    !merged.fixture?.tv_channels?.length &&
+    base.fixture?.tv_channels?.length &&
+    merged.fixture
+  ) {
+    merged.fixture.tv_channels = base.fixture.tv_channels;
+  }
+
+  return merged;
 }
 
 /**
