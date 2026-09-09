@@ -11,17 +11,23 @@ import { SITE_URL } from "@/lib/config";
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const page = (path: string, priority: number): MetadataRoute.Sitemap[number] => ({
+  const page = (
+    path: string,
+    priority: number,
+    changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"],
+  ): MetadataRoute.Sitemap[number] => ({
     url: `${SITE_URL}${path}`,
     lastModified: now,
-    changeFrequency: "daily",
+    changeFrequency,
     priority,
   });
 
   return [
-    page("/", 1),
-    page("/leagues", 0.8),
-    page("/scorers", 0.7),
-    page("/players", 0.5),
+    // The home fixture list turns over through the day; the rest change as
+    // results and leaderboards update, but not by the hour.
+    page("/", 1, "daily"),
+    page("/leagues", 0.8, "weekly"),
+    page("/scorers", 0.7, "daily"),
+    page("/players", 0.5, "weekly"),
   ];
 }

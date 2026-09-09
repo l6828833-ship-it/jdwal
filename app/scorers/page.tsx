@@ -16,6 +16,9 @@ export const metadata = {
   title: t.topScorers,
   description:
     "ترتيب الهدافين وصناع الأهداف في الدوريات الكبرى ودوري أبطال أوروبا.",
+  // The `?league=` variants are the same page; point them at the clean URL so
+  // they don't fragment as duplicate content.
+  alternates: { canonical: "/scorers" },
 };
 
 /**

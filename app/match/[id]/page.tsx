@@ -28,6 +28,8 @@ export async function generateMetadata(
     const { home, away, league } = result.match;
     return {
       title: `${home.name} ${t.vs} ${away.name} — ${league.name}`,
+      description: `${home.name} ${t.vs} ${away.name} في ${league.name} — النتيجة المباشرة والأهداف وتفاصيل المباراة.`,
+      alternates: { canonical: `/match/${matchId}` },
     };
   } catch {
     return { title: t.appName };

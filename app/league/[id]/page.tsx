@@ -57,9 +57,15 @@ export async function generateMetadata(
   try {
     const result = await getLeagueStandings(leagueId);
     const name = result?.standings.league?.name;
-    return { title: name ? `${name} — ${t.appName}` : t.appName };
+    return {
+      title: name ?? t.standings,
+      description: name
+        ? `${name} — جدول المباريات والترتيب والهدافين، ونتائج مباشرة.`
+        : undefined,
+      alternates: { canonical: `/league/${leagueId}` },
+    };
   } catch {
-    return { title: t.appName };
+    return { title: t.standings };
   }
 }
 

@@ -5,7 +5,13 @@ import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: `${t.playersTitle} — ${t.appName}` };
+// Plain page name; the root layout's title.template appends the brand.
+export const metadata = {
+  title: t.playersTitle,
+  description:
+    "ابحث عن لاعبي كرة القدم بالاسم — أهدافهم وأنديتهم في الدوريات الكبرى.",
+  alternates: { canonical: "/players" },
+};
 
 export default function PlayersPage() {
   if (!hasPlayerSearch()) return <ApiKeyNotice />;
