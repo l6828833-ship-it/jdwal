@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { getMatchesByDate } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
 import { isValidDateKey, todayKey, dateKeyDiff } from "@/lib/date";
+import { resolveTimezoneFromRequest } from "@/lib/geo-timezone";
 import { DATE_RANGE_DAYS, LIVE_POLL_SECONDS } from "@/lib/config";
 import type { MatchesPayload } from "@/lib/types";
 
@@ -15,7 +16,12 @@ import type { MatchesPayload } from "@/lib/types";
  * The API key stays server-side; it is never shipped to the browser.
  */
 export async function GET(request: NextRequest) {
-  const today = todayKey();
+  // "Today" must be computed in the SAME zone the client's date selector uses
+  // (the IP-resolved zone), or the two disagree by a day and the range check
+  // below wrongly rejects dates the user can still navigate to — which showed
+  // up as an empty screen when paging a couple of days ahead.
+  const { timezone } = await resolveTimezoneFromRequest();
+  const today = todayKey(timezone);
   const requested = request.nextUrl.searchParams.get("date") ?? today;
 
   if (!isValidDateKey(requested)) {
@@ -26,9 +32,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Bound how far the date arrows can reach so crawlers can't walk the
-  // calendar and drain the monthly quota.
+  // calendar and drain the monthly quota. A one-day grace beyond the selector's
+  // range absorbs any timezone drift between the client's "today" and the
+  // server's, so a date the user can legitimately reach is never rejected.
   const offset = dateKeyDiff(today, requested);
-  if (Math.abs(offset) > DATE_RANGE_DAYS) {
+  if (Math.abs(offset) > DATE_RANGE_DAYS + 1) {
     return Response.json(
       { error: `Date out of range (±${DATE_RANGE_DAYS} days).` },
       { status: 400 },
