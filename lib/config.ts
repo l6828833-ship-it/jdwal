@@ -282,6 +282,42 @@ export function hasQualifyingPhase(leagueId: number, leagueName: string): boolea
  * Matches on id first, then on the longest alias contained in the name so that
  * "Europe UEFA Champions League" still resolves correctly.
  */
+/**
+ * Competitions that must NOT inherit a pinned rank by name alone.
+ *
+ * Alias matching is a substring test, so "U20 World Cup", "Women's World Cup",
+ * "Club World Cup" and "World Cup Qualifications" all contain "world cup" and
+ * were being pinned to the World Cup's top slot — pushing the real fixtures
+ * down. A youth, women's, reserve or qualifying edition is a different
+ * competition, so these fall through to the alphabetical tail instead.
+ *
+ * Note this only blocks ALIAS matching. An explicit id in `ids` still wins, so
+ * a competition can always be pinned deliberately.
+ */
+const YOUTH_OR_SECONDARY = new RegExp(
+  [
+    "\\bu-?\\d{2}\\b", //        U17, U20, U-23, U21 ...
+    "\\byouth\\b",
+    "\\bjunior\\b",
+    "\\bwomen", //               women / women's
+    "\\bfeminine\\b",
+    "\\bladies\\b",
+    "\\bgirls\\b",
+    "\\bboys\\b",
+    "\\bclub world cup\\b", //   a different tournament from the World Cup
+    "\\bqualif", //              qualification / qualifiers
+    "\\bplayoff tournament\\b",
+    "\\bfriendl", //             friendlies
+    "\\breserve",
+    "\\bacademy\\b",
+    "\\bamateur\\b",
+    "\\bfutsal\\b",
+    "\\bbeach\\b",
+    "\\besports\\b",
+  ].join("|"),
+  "i",
+);
+
 export function leaguePopularity(
   leagueId: number,
   leagueName: string,
@@ -292,6 +328,12 @@ export function leaguePopularity(
     if (POPULAR_LEAGUES[i].ids.includes(leagueId)) {
       return { rank: i, entry: POPULAR_LEAGUES[i] };
     }
+  }
+
+  // A youth / women's / qualifying edition must not borrow a senior
+  // competition's rank through a substring alias match.
+  if (YOUTH_OR_SECONDARY.test(name)) {
+    return { rank: Number.POSITIVE_INFINITY, entry: null };
   }
 
   let best: { rank: number; entry: PopularLeague; length: number } | null = null;
