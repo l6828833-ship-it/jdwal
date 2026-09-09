@@ -22,7 +22,19 @@
 
 import * as fs from "node:fs";
 import { BUDGET_HARD_LIMIT_RATIO, BUDGET_SOFT_LIMIT_RATIO, MONTHLY_LIMIT } from "./config";
+import { nowMs } from "./true-time";
 
+/**
+ * Timestamps here are TRUE UTC (lib/true-time.ts), not `Date.now()`.
+ *
+ * TTLs are durations, so they are only meaningful if both ends of the
+ * subtraction come from a clock that moves at one rate. On a host whose system
+ * clock is wrong — or gets corrected mid-session by NTP — `Date.now()` does not:
+ * entries written before a jump appear either instantly expired or frozen fresh
+ * forever, and the `ageSeconds` reported to the UI becomes fiction. Staying on
+ * true UTC (rather than a monotonic counter) also keeps `fetchedAt` meaningful
+ * across the disk snapshot below, which outlives the process.
+ */
 interface CacheEntry<T> {
   value: T;
   fetchedAt: number;
@@ -115,7 +127,7 @@ export function recordUpstreamUsage(
   const s = store();
   if (typeof used === "number" && Number.isFinite(used)) {
     s.budget.used = used;
-    s.budget.lastUpdated = Date.now();
+    s.budget.lastUpdated = nowMs();
   }
   if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {
     s.budget.limit = limit;
@@ -210,7 +222,7 @@ export async function getCached<T>(
 ): Promise<CachedResult<T>> {
   const s = store();
   const { ttlSeconds, priority = "normal", serveStaleOnError = true } = options;
-  const now = Date.now();
+  const now = nowMs();
   const entry = s.entries.get(key) as CacheEntry<T> | undefined;
 
   const ageSeconds = entry ? Math.round((now - entry.fetchedAt) / 1000) : 0;
@@ -257,7 +269,7 @@ export async function getCached<T>(
   const promise = (async () => {
     incrementUsage();
     const value = await fetcher();
-    s.entries.set(key, { value, fetchedAt: Date.now(), ttlMs: ttlSeconds * 1000 });
+    s.entries.set(key, { value, fetchedAt: nowMs(), ttlMs: ttlSeconds * 1000 });
     persistToDisk();
     return value;
   })();

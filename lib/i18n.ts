@@ -62,6 +62,13 @@ export const t = {
   referee: "الحكم",
   stage: "الدور",
   channel: "القناة الناقلة",
+  /**
+   * Used when only the rights-holding NETWORK is known, not the specific channel
+   * — the normal case for a competition whose matches kick off in parallel. The
+   * label has to change with the value, or "beIN SPORTS" under "القناة الناقلة"
+   * reads as a channel name and the distinction is lost.
+   */
+  network: "الشبكة الناقلة",
   commentator: "المعلق",
   attendance: "الحضور",
 

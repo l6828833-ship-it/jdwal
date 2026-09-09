@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Crest } from "@/components/crest";
 import { ScorersTable } from "@/components/scorers-table";
+import { TableSkeleton } from "@/components/skeleton";
 import { ApiKeyNotice, LoadErrorNotice, QuotaNotice } from "@/components/notices";
 import { getLeagueScorers, getLeagues, hasApiKey } from "@/lib/provider";
 import { POPULAR_LEAGUES } from "@/lib/config";
@@ -61,21 +63,6 @@ export default async function ScorersPage(props: PageProps<"/scorers">) {
   const selected =
     tabs.find((l) => l.id === requested) ?? tabs[0] ?? null;
 
-  let scorers: LeagueScorers = { available: false, seasonYear: null, scorers: [] };
-  let error: string | null = null;
-  if (selected) {
-    try {
-      ({ scorers } = await getLeagueScorers(selected.id));
-    } catch (cause) {
-      if (cause instanceof Error && /budget/i.test(cause.message)) {
-        return <QuotaNotice />;
-      }
-      error = cause instanceof Error ? cause.message : String(cause);
-    }
-  }
-
-  if (error) return <LoadErrorNotice message={error} />;
-
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
@@ -107,8 +94,59 @@ export default async function ScorersPage(props: PageProps<"/scorers">) {
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-3 py-3 sm:px-4">
-        <ScorersTable data={scorers} />
+        {/**
+         * The leaderboard streams on its own.
+         *
+         * The tab strip above needs only `getLeagues()`, which is effectively
+         * instant, while the leaderboard is the expensive part — the backend
+         * builds it by scanning a window of fixtures, measured at 13 seconds on a
+         * cold cache. Awaiting both together meant the whole screen, tabs
+         * included, waited on the slow one.
+         *
+         * Splitting them means the header and tabs paint straight away and stay
+         * interactive: you can pick a different competition while one is still
+         * loading, instead of watching a dead page. `key` re-arms the boundary on
+         * each competition change, so switching tabs shows the skeleton again
+         * rather than leaving the previous league's table up as if it were the
+         * new one's.
+         */}
+        <Suspense key={selected?.id ?? "none"} fallback={<TableSkeleton rows={12} />}>
+          <Leaderboard leagueId={selected?.id ?? null} />
+        </Suspense>
       </main>
     </>
   );
+}
+
+/**
+ * One competition's leaderboard.
+ *
+ * Errors are rendered in place rather than replacing the page, so a competition
+ * the backend cannot answer for leaves the tabs usable to pick another.
+ */
+async function Leaderboard({ leagueId }: { leagueId: number | null }) {
+  const empty: LeagueScorers = { available: false, seasonYear: null, scorers: [] };
+
+  // Resolve first, render after: building JSX inside try/catch would let a
+  // render-time throw from a child be swallowed by this handler instead of
+  // reaching an error boundary.
+  let scorers = empty;
+  let failure: string | null = null;
+  let quotaExhausted = false;
+
+  if (leagueId != null) {
+    try {
+      ({ scorers } = await getLeagueScorers(leagueId));
+    } catch (cause) {
+      if (cause instanceof Error && /budget/i.test(cause.message)) {
+        quotaExhausted = true;
+      } else {
+        failure = cause instanceof Error ? cause.message : String(cause);
+      }
+    }
+  }
+
+  if (quotaExhausted) return <QuotaNotice />;
+  if (failure) return <LoadErrorNotice message={failure} />;
+  return <ScorersTable data={scorers} />;
 }

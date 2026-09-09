@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Crest, Flag } from "./crest";
 import { LiveBadge } from "./live-badge";
 import { useTimezone } from "./timezone-provider";
+import { useMinuteAnchor } from "./use-minute-anchor";
 import { formatKickoff } from "@/lib/date";
 import { liveClock } from "@/lib/clock";
 import { t } from "@/lib/i18n";
@@ -12,13 +13,14 @@ import type { Match } from "@/lib/types";
 interface MatchRowProps {
   match: Match;
   /**
-   * Current time in unix seconds. When provided, the live minute advances
-   * locally so the clock keeps ticking between polls without extra requests.
+   * Current time in unix seconds, on the SERVER's clock — from `useServerNow`,
+   * never `Date.now()`. When provided, the live minute advances locally so the
+   * clock keeps ticking between polls without extra requests.
    */
   nowUnix?: number;
   /**
-   * Server time the match data was normalized. The gap between this and
-   * `nowUnix` is how far the provider's reported minute has to be advanced.
+   * Server time the match data was normalized. Used to date the provider's
+   * reported minute, so `liveClock` knows how far to advance it.
    */
   reportedAtUnix?: number;
 }
@@ -39,9 +41,17 @@ export function MatchRow({ match, nowUnix, reportedAtUnix }: MatchRowProps) {
   const isFinished = match.status === "finished";
   const showScore = isLive || isFinished;
 
+  // Dates the provider's minute by when it was FIRST seen, so the clock keeps
+  // ticking between the provider's own updates instead of mirroring them.
+  const minuteAt = useMinuteAnchor(
+    match.minute,
+    match.isHalfTime,
+    reportedAtUnix ?? nowUnix ?? 0,
+  );
+
   const clock =
     isLive && nowUnix != null
-      ? liveClock(match, reportedAtUnix ?? nowUnix, nowUnix)
+      ? liveClock(match, minuteAt, nowUnix)
       : { minute: match.minute, isHalfTime: match.isHalfTime };
 
   return (

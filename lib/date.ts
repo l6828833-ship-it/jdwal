@@ -8,6 +8,7 @@
  */
 
 import { DISPLAY_TIMEZONE } from "./config";
+import { nowDate } from "./true-time";
 
 const AR_WEEKDAYS = [
   "الأحد",
@@ -81,11 +82,14 @@ const WEEKDAY_INDEX: Record<string, number> = {
 export const FALLBACK_TIMEZONE = DISPLAY_TIMEZONE;
 
 /**
- * The viewer's timezone, detected from the browser.
+ * The DEVICE's configured timezone.
  *
- * "Today" has to mean today where the user actually is. Pinning it to one zone
- * makes the app roll over to the next day early or late for everyone else.
- * Returns null on the server, where there is no viewer to ask.
+ * Not the app's source of truth — the zone is resolved from the visitor's IP on
+ * the server (lib/geo-timezone.ts), because a machine's own setting is often
+ * stale or simply wrong and there is no way to tell from here. This is only
+ * reachable behind the opt-in device fallback in components/timezone-provider.tsx.
+ *
+ * Returns null on the server, where there is no device to ask.
  */
 export function detectTimezone(): string | null {
   try {
@@ -124,9 +128,18 @@ export function toDateKey(date: Date, timeZone?: string | null): string {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
-/** Today's date key in the given timezone. */
+/**
+ * Today's date key in the given timezone.
+ *
+ * Reads the TRUSTED clock, not `Date.now()`. Which day it is decides which
+ * fixtures get fetched, so on a machine whose date is wrong this is what put the
+ * whole app on the wrong day — see lib/true-time.ts.
+ *
+ * Callers on a request path should prefer `resolveRequestTime()` from
+ * lib/geo-timezone.ts, which guarantees the clock has been synced first.
+ */
 export function todayKey(timeZone?: string | null): string {
-  return toDateKey(new Date(), timeZone);
+  return toDateKey(nowDate(), timeZone);
 }
 
 /** Shift a "YYYY-MM-DD" key by whole days, staying calendar-correct. */

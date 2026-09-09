@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
+import { ClockSync } from "@/components/clock-sync";
 import { TimezoneProvider } from "@/components/timezone-provider";
-import { resolveTimezoneFromRequest } from "@/lib/geo-timezone";
+import { resolveRequestTime } from "@/lib/geo-timezone";
 import { SITE_URL } from "@/lib/config";
 import { t } from "@/lib/i18n";
 
@@ -82,9 +83,16 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // Resolve the visitor's zone from their IP. When that fails, `resolved` is
-  // false and the provider falls back to the browser's own zone on the client.
-  const { timezone, resolved } = await resolveTimezoneFromRequest();
+  /**
+   * Both halves of the request's time context, resolved over the network:
+   *
+   *  • the visitor's zone, from their IP. When that fails, `resolved` is false
+   *    and the provider falls back to the browser's own zone on the client.
+   *  • real UTC, from an external authority rather than this machine's clock,
+   *    which is then handed to the browser by `<ClockSync>` so the device clock
+   *    is not consulted there either.
+   */
+  const { timezone, resolved, nowUnix } = await resolveRequestTime();
 
   // WebSite structured data: tells Google the site's name is "jdwal" and its
   // primary purpose ("جدول مباريات"), which strengthens brand-term ranking.
@@ -106,6 +114,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <ClockSync serverNowUnix={nowUnix} />
         <TimezoneProvider serverTimezone={timezone} resolvedFromIp={resolved}>
           {/* The bottom nav is fixed at every breakpoint, so this padding must
               apply at every breakpoint too, or the last row hides behind it. */}

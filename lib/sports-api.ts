@@ -32,6 +32,8 @@ import { resolveBroadcast } from "./broadcast";
 import { parseProviderDate } from "./date";
 import { hasQualifyingPhase, leaguePopularity } from "./config";
 import { compareMatches } from "./grouping";
+// Trusted clock (network-resolved UTC), never the host's system clock.
+import { nowUnix as trueNowUnix } from "./true-time";
 import {
   MAX_MATCH_WINDOW_MINUTES,
   deriveClock,
@@ -454,7 +456,7 @@ interface NormalizeContext {
 }
 
 function normalizeMatch(raw: RawMatch, ctx: NormalizeContext = {}): Match {
-  const nowUnix = ctx.nowUnix ?? Math.floor(Date.now() / 1000);
+  const nowUnix = ctx.nowUnix ?? trueNowUnix();
 
   const kickoffUnix =
     (typeof raw.date_unix === "number" && raw.date_unix > 0
@@ -697,7 +699,7 @@ export async function getMatchesByDate(
   ]);
 
   const liveIds = new Set(liveRaws.keys());
-  const nowUnix = Math.floor(Date.now() / 1000);
+  const nowUnix = trueNowUnix();
   const matches = cached.value.raws.map((raw) =>
     normalizeMatch(mergeLive(raw, liveRaws.get(raw.match_id)), {
       liveIds,
@@ -747,7 +749,7 @@ export async function getMatchDetail(
   const liveRaws = await getLiveRawMap();
   const raw = mergeLive(cachedRaw, liveRaws.get(cachedRaw.match_id));
   const liveIds = new Set(liveRaws.keys());
-  const nowUnix = Math.floor(Date.now() / 1000);
+  const nowUnix = trueNowUnix();
   const base = normalizeMatch(raw, { liveIds, nowUnix });
 
   return {
@@ -1237,7 +1239,7 @@ export async function getTeamPage(
   const profile = cached.value.profile;
   if (!profile?.team_id) return null;
 
-  const nowUnix = Math.floor(Date.now() / 1000);
+  const nowUnix = trueNowUnix();
   const liveRaws = await getLiveRawMap();
   const liveIds = new Set(liveRaws.keys());
   const all = cached.value.raws.map((raw) =>

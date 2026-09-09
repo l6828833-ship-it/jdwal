@@ -68,8 +68,22 @@ export interface Venue {
  * whenever no entry is configured.
  */
 export interface Broadcast {
+  /**
+   * What to show as the broadcaster: a specific channel when one is known for
+   * this fixture, otherwise the network that holds the rights.
+   */
   channel: string;
   commentator: string | null;
+  /**
+   * True when `channel` names an actual channel for THIS match; false when it is
+   * only the network.
+   *
+   * A specific channel number is a per-fixture fact — a Champions League matchday
+   * splits nine simultaneous kickoffs across beIN SPORTS 1-9 — so it can only be
+   * stated for a fixture it was recorded against. This flag lets the UI say which
+   * it is rather than implying a precision it does not have.
+   */
+  precise: boolean;
   /** Always "editorial" so the UI can be honest about provenance. */
   source: "editorial";
 }

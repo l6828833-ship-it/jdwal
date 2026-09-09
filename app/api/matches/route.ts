@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { getMatchesByDate } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
-import { isValidDateKey, todayKey, dateKeyDiff } from "@/lib/date";
-import { resolveTimezoneFromRequest } from "@/lib/geo-timezone";
+import { isValidDateKey, dateKeyDiff } from "@/lib/date";
+import { resolveRequestTime } from "@/lib/geo-timezone";
 import { DATE_RANGE_DAYS, LIVE_POLL_SECONDS } from "@/lib/config";
 import type { MatchesPayload } from "@/lib/types";
 
@@ -17,11 +17,12 @@ import type { MatchesPayload } from "@/lib/types";
  */
 export async function GET(request: NextRequest) {
   // "Today" must be computed in the SAME zone the client's date selector uses
-  // (the IP-resolved zone), or the two disagree by a day and the range check
-  // below wrongly rejects dates the user can still navigate to — which showed
-  // up as an empty screen when paging a couple of days ahead.
-  const { timezone } = await resolveTimezoneFromRequest();
-  const today = todayKey(timezone);
+  // (the IP-resolved zone) and off the SAME trusted clock, or the two disagree
+  // by a day and the range check below wrongly rejects dates the user can still
+  // navigate to — which showed up as an empty screen when paging a couple of
+  // days ahead. See resolveRequestTime.
+  const { today, timezone, source, hostClockOffsetSeconds } =
+    await resolveRequestTime();
   const requested = request.nextUrl.searchParams.get("date") ?? today;
 
   if (!isValidDateKey(requested)) {
@@ -71,6 +72,22 @@ export async function GET(request: NextRequest) {
         "Netlify-Vary": "query=date",
         // Same intent for any other standards-compliant CDN in front of this.
         Vary: "Accept-Encoding",
+        /**
+         * Diagnostic: how many seconds the SERVER's own system clock is out by,
+         * as measured against the network (lib/true-time.ts). `0` means the host
+         * is correctly synced; anything large means the correction is carrying
+         * the app and the machine's clock should be fixed. Without this the
+         * condition is invisible — it only shows up as strange match minutes.
+         */
+        "X-Host-Clock-Offset": String(hostClockOffsetSeconds ?? "unknown"),
+        /**
+         * Diagnostic: the zone times are rendered in, and which source gave it.
+         * Anything but `fallback` came from the visitor's connection; `fallback`
+         * means none of them answered and the configured default is standing in.
+         * The device is never a source — see components/timezone-provider.tsx.
+         */
+        "X-Timezone": timezone,
+        "X-Timezone-Source": source,
       },
     });
   } catch (error) {

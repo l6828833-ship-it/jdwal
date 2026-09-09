@@ -7,6 +7,8 @@ import { Crest, Flag } from "./crest";
 import { LiveBadge } from "./live-badge";
 import { MatchStatsPanel } from "./match-stats";
 import { useTimezone } from "./timezone-provider";
+import { useMinuteAnchor } from "./use-minute-anchor";
+import { useServerNow } from "./use-server-now";
 import { liveClock } from "@/lib/clock";
 import { LIVE_POLL_SECONDS } from "@/lib/config";
 import { formatDateLong, formatKickoff, toDateKey } from "@/lib/date";
@@ -22,9 +24,6 @@ interface MatchDetailViewProps {
 
 type Tab = "info" | "stats";
 
-/** One second, so the match minute ticks smoothly. Pure local recompute. */
-const CLOCK_TICK_MS = 1_000;
-
 export function MatchDetailView({
   initialMatch,
   initialNowUnix,
@@ -32,13 +31,7 @@ export function MatchDetailView({
   const router = useRouter();
   const timezone = useTimezone();
   const [match, setMatch] = useState(initialMatch);
-  const [nowUnix, setNowUnix] = useState(initialNowUnix);
-  /**
-   * When the current `match` was normalized on the server. Distinct from
-   * `nowUnix`, which the local tick advances every 20s — the provider's reported
-   * minute has to be advanced relative to when it was reported, not relative to
-   * a clock that keeps moving on its own.
-   */
+  /** When the current `match` was normalized on the server. */
   const [reportedAtUnix, setReportedAtUnix] = useState(initialNowUnix);
   const [tab, setTab] = useState<Tab>("info");
 
@@ -47,12 +40,23 @@ export function MatchDetailView({
   const showScore = isLive || isFinished;
   const hasStats = Boolean(match.stats?.hasAny);
 
+  /**
+   * Ticks between polls so the minute advances smoothly. Anchored to the server
+   * timestamp above, NOT to the device clock — see useServerNow for why that
+   * distinction is what keeps the minute correct.
+   */
+  const nowUnix = useServerNow(reportedAtUnix, isLive);
+
+  // See useMinuteAnchor: dates the minute by its first sighting, not by the
+  // payload, so a 20s poll cadence can't keep resetting the drift to zero.
+  const minuteAt = useMinuteAnchor(match.minute, match.isHalfTime, reportedAtUnix);
+
   const clock = useMemo(
     () =>
       isLive
-        ? liveClock(match, reportedAtUnix, nowUnix)
+        ? liveClock(match, minuteAt, nowUnix)
         : { minute: match.minute, isHalfTime: match.isHalfTime },
-    [isLive, match, reportedAtUnix, nowUnix],
+    [isLive, match, minuteAt, nowUnix],
   );
 
   const refresh = useCallback(async () => {
@@ -65,7 +69,6 @@ export function MatchDetailView({
       };
       if (body?.match) {
         setMatch(body.match);
-        setNowUnix(body.nowUnix);
         setReportedAtUnix(body.nowUnix);
       }
     } catch {
@@ -109,16 +112,6 @@ export function MatchDetailView({
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [shouldPoll, refresh]);
-
-  /** Local clock tick so the minute advances smoothly between polls, free. */
-  useEffect(() => {
-    if (!isLive) return;
-    const timer = setInterval(
-      () => setNowUnix(Math.floor(Date.now() / 1000)),
-      CLOCK_TICK_MS,
-    );
-    return () => clearInterval(timer);
-  }, [isLive]);
 
   const dateKey = toDateKey(new Date(match.kickoffUnix * 1000), timezone);
 
@@ -309,7 +302,15 @@ export function MatchDetailView({
                 )}
                 {match.broadcast && (
                   <>
-                    <InfoRow label={t.channel} value={match.broadcast.channel} ltr />
+                    {/* The label follows the precision of the value: a specific
+                        channel is "القناة الناقلة", a bare network is "الشبكة
+                        الناقلة". Labelling "beIN SPORTS" as the channel would
+                        read as a channel name and lose the distinction. */}
+                    <InfoRow
+                      label={match.broadcast.precise ? t.channel : t.network}
+                      value={match.broadcast.channel}
+                      ltr
+                    />
                     {match.broadcast.commentator && (
                       <InfoRow
                         label={t.commentator}
@@ -322,8 +323,9 @@ export function MatchDetailView({
 
               {match.broadcast && (
                 <p className="border-t border-divider px-4 py-2 text-[0.65rem] leading-relaxed text-muted-dim">
-                  بيانات القناة والمعلق تحريرية لمنطقة {BROADCAST_REGION} وليست
-                  من مزود البيانات، وقد تتغير.
+                  {match.broadcast.precise
+                    ? `بيانات القناة والمعلق تحريرية لمنطقة ${BROADCAST_REGION} وليست من مزود البيانات، وقد تتغير.`
+                    : `الشبكة الناقلة لمنطقة ${BROADCAST_REGION}. القناة المحددة تختلف بين المباريات المتزامنة ولا يوفرها مزود البيانات.`}
                 </p>
               )}
             </section>

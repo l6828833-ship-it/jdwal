@@ -49,6 +49,9 @@ import { resolveBroadcast } from "./broadcast";
 import { compareMatches } from "./grouping";
 import { leaguePopularity } from "./config";
 import { MAX_MATCH_WINDOW_MINUTES, statusLabelAr } from "./clock";
+// Aliased because several functions below bind a local `nowUnix`; the trusted
+// clock must never be shadowed by one of them.
+import { nowDate, nowMs, nowUnix as trueNowUnix } from "./true-time";
 import type {
   ApiMeta,
   LeagueRef,
@@ -81,15 +84,30 @@ const BASE_URL = (
  *
  * Defaults to the season in progress, rolling over in July. Keep this in sync
  * with the backend's own `DEFAULT_SEASON`.
+ *
+ * Resolved lazily rather than as a module constant so the year comes off the
+ * trusted clock (lib/true-time.ts). Module evaluation happens before any request
+ * has been served, so at that point there is nothing synced to read and only the
+ * host's own clock is available. The window where a skewed clock changes the
+ * answer is one day a year, but a wrong season year returns an empty table for
+ * every competition, so it is not worth guessing at.
  */
-const SEASON = (() => {
+let seasonCache: number | null = null;
+
+function currentSeason(): number {
+  if (seasonCache != null) return seasonCache;
+
   const raw = Number(process.env.SELFHOSTED_SEASON);
-  if (Number.isFinite(raw) && raw > 2000) return Math.round(raw);
-  const now = new Date();
-  return now.getUTCMonth() + 1 >= 7
-    ? now.getUTCFullYear()
-    : now.getUTCFullYear() - 1;
-})();
+  if (Number.isFinite(raw) && raw > 2000) {
+    seasonCache = Math.round(raw);
+    return seasonCache;
+  }
+
+  const now = nowDate();
+  seasonCache =
+    now.getUTCMonth() + 1 >= 7 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  return seasonCache;
+}
 
 export class SelfHostedError extends Error {
   readonly status: number;
@@ -128,7 +146,9 @@ let historicalSeasonsCache: { value: boolean; at: number } | null = null;
 const HEALTH_TTL_MS = 5 * 60 * 1000;
 
 export async function supportsHistoricalSeasons(): Promise<boolean> {
-  const now = Date.now();
+  // Trusted clock, not the host's: this is a duration, and a system clock that
+  // jumps mid-session makes the TTL either expire instantly or never.
+  const now = nowMs();
   if (historicalSeasonsCache && now - historicalSeasonsCache.at < HEALTH_TTL_MS) {
     return historicalSeasonsCache.value;
   }
@@ -181,7 +201,7 @@ interface RawQuota {
  * fail a data request.
  */
 function refreshQuota(): void {
-  const now = Date.now();
+  const now = nowMs();
   if (now - quotaCheckedAt < QUOTA_REFRESH_MS) return;
   quotaCheckedAt = now;
 
@@ -518,8 +538,12 @@ function normalizeMatch(raw: RawFixture): Match {
    * final in the feed, so this only corrects the status/minute, never a result.
    */
   const rawStatus = mapStatus(core?.status?.short);
+  // Trusted clock: `kickoffUnix` is a real UTC instant from the provider, so
+  // comparing it against a skewed host clock measures the skew, not elapsed
+  // time — which would force every live match to "finished" (or hold a finished
+  // one open) depending on which way the machine is wrong.
   const minutesSinceKickoff =
-    kickoffUnix > 0 ? Math.floor((Date.now() / 1000 - kickoffUnix) / 60) : 0;
+    kickoffUnix > 0 ? Math.floor((trueNowUnix() - kickoffUnix) / 60) : 0;
   const status: MatchStatus =
     rawStatus === "live" && minutesSinceKickoff > MAX_MATCH_WINDOW_MINUTES
       ? "finished"
@@ -739,7 +763,12 @@ function mergeLive(base: RawFixture, live: RawFixture | undefined): RawFixture {
 function canBeLive(dateKey: string): boolean {
   const noon = Date.parse(`${dateKey}T12:00:00Z`);
   if (!Number.isFinite(noon)) return false;
-  const todayNoon = Date.parse(`${new Date().toISOString().slice(0, 10)}T12:00:00Z`);
+  // "UTC now" from the trusted clock. On a host whose date is wrong this test
+  // classed today as settled history — 24-hour cache, live overlay skipped —
+  // which is the same frozen clock the comment above describes.
+  const todayNoon = Date.parse(
+    `${nowDate().toISOString().slice(0, 10)}T12:00:00Z`,
+  );
   return Math.abs(noon - todayNoon) <= 24 * 60 * 60 * 1000;
 }
 
@@ -786,7 +815,7 @@ export async function getMatchesByDate(
 
   return {
     matches,
-    nowUnix: Math.floor(Date.now() / 1000),
+    nowUnix: trueNowUnix(),
     meta: meta(
       cached.fromCache,
       cached.ageSeconds,
@@ -824,7 +853,7 @@ export async function getMatchDetail(
       stats: extractStats(merged),
       goals: extractGoals(merged),
     },
-    nowUnix: Math.floor(Date.now() / 1000),
+    nowUnix: trueNowUnix(),
     meta: meta(
       cached.fromCache,
       cached.ageSeconds,
@@ -896,7 +925,7 @@ export async function getLeagueStandings(
   standings: LeagueStandings;
   meta: ApiMeta;
 } | null> {
-  const seasonYear = season && Number.isFinite(season) ? season : SEASON;
+  const seasonYear = season && Number.isFinite(season) ? season : currentSeason();
   const cached = await getCached(
     `sh-standings:${leagueId}:${seasonYear}`,
     async () => {
@@ -1000,7 +1029,7 @@ export async function getLeagueFixtures(leagueId: number): Promise<{
     { ttlSeconds: CACHE_TTL.today, priority: "normal" },
   );
 
-  const nowUnix = Math.floor(Date.now() / 1000);
+  const nowUnix = trueNowUnix();
   const liveMap = await getLiveMap();
   const matches = cached.value.fixtures
     .map((raw) => normalizeMatch(mergeLive(raw, liveMap.get(raw.fixture?.id ?? -1))))
@@ -1140,11 +1169,11 @@ export async function getLeagueTeams(leagueId: number): Promise<{
   meta: ApiMeta;
 }> {
   const cached = await getCached(
-    `sh-league-teams:${leagueId}:${SEASON}`,
+    `sh-league-teams:${leagueId}:${currentSeason()}`,
     async () => {
       const body = await apiFetch<RawTeamsBody>("/teams/getTeams", {
         league: leagueId,
-        season: SEASON,
+        season: currentSeason(),
       });
       return isEmpty(body) ? [] : body.allTeams ?? [];
     },
@@ -1174,7 +1203,7 @@ export async function getTeamPage(
   teamId: number,
 ): Promise<{ page: TeamPage; meta: ApiMeta; nowUnix: number } | null> {
   const cached = await getCached(
-    `sh-team:${teamId}:${SEASON}`,
+    `sh-team:${teamId}:${currentSeason()}`,
     async () => {
       // Two requests: the profile, and the team's season fixtures. Fetching a
       // whole season at once is one request rather than separate "next" and
@@ -1183,7 +1212,7 @@ export async function getTeamPage(
         apiFetch<RawTeamsBody>("/teams/getTeams", { id: teamId }),
         apiFetch<unknown>("/fixtures/getFixtures", {
           team: teamId,
-          season: SEASON,
+          season: currentSeason(),
         }),
       ]);
       return {
@@ -1197,7 +1226,7 @@ export async function getTeamPage(
   const profile = cached.value.profile;
   if (!profile?.team?.id) return null;
 
-  const nowUnix = Math.floor(Date.now() / 1000);
+  const nowUnix = trueNowUnix();
   const liveMap = await getLiveMap();
   const all = cached.value.fixtures.map((raw) =>
     normalizeMatch(mergeLive(raw, liveMap.get(raw.fixture?.id ?? -1))),
@@ -1335,13 +1364,13 @@ export async function getLeagueScorers(
   leagueId: number,
 ): Promise<{ scorers: LeagueScorers; meta: ApiMeta }> {
   const cached = await getCached(
-    `sh-scorers:${leagueId}:${SEASON}`,
+    `sh-scorers:${leagueId}:${currentSeason()}`,
     async () => {
       try {
         const body = await apiFetch<{
           topScorers?: RawScorerEntry[];
           error?: string;
-        }>("/players/getTopScorers", { league: leagueId, season: SEASON });
+        }>("/players/getTopScorers", { league: leagueId, season: currentSeason() });
         return isEmpty(body) ? [] : body.topScorers ?? [];
       } catch (error) {
         /**
@@ -1361,7 +1390,7 @@ export async function getLeagueScorers(
 
   if (cached.value === null) {
     return {
-      scorers: { available: false, seasonYear: SEASON, scorers: [] },
+      scorers: { available: false, seasonYear: currentSeason(), scorers: [] },
       meta: meta(
         cached.fromCache,
         cached.ageSeconds,
@@ -1407,7 +1436,7 @@ export async function getLeagueScorers(
     });
 
   return {
-    scorers: { available: true, seasonYear: SEASON, scorers },
+    scorers: { available: true, seasonYear: currentSeason(), scorers },
     meta: meta(
       cached.fromCache,
       cached.ageSeconds,

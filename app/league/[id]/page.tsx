@@ -20,17 +20,23 @@ import {
   supportsHistoricalSeasons,
 } from "@/lib/provider";
 import { countryNameAr } from "@/lib/countries";
+import { ensureTrueTime, nowDate, nowUnix as trueNowUnix } from "@/lib/true-time";
 import { t } from "@/lib/i18n";
 import type { Match } from "@/lib/types";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-/** Season the app queries by default (starting year: 2026 => 2026/2027). */
+/**
+ * Season the app queries by default (starting year: 2026 => 2026/2027).
+ *
+ * Reads the trusted clock, not `Date.now()` — a host whose year is wrong would
+ * otherwise offer a season that returns an empty table for every competition.
+ */
 function defaultSeason(): number {
   const raw = Number(process.env.SELFHOSTED_SEASON);
   if (Number.isFinite(raw) && raw > 2000) return Math.round(raw);
-  const now = new Date();
+  const now = nowDate();
   return now.getUTCMonth() + 1 >= 7
     ? now.getUTCFullYear()
     : now.getUTCFullYear() - 1;
@@ -64,10 +70,14 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
   const leagueId = Number(id);
   if (!Number.isInteger(leagueId) || leagueId <= 0) notFound();
 
-  // Server component (not a hook): reading the clock here is correct. The purity
-  // lint rule is aimed at render-phase impurity in client components.
-  // eslint-disable-next-line react-hooks/purity
-  const nowUnixFallback = Math.floor(Date.now() / 1000);
+  /**
+   * Fallback "now" for when the fixtures call fails and carries no timestamp of
+   * its own. Off the trusted clock, so a wrong host clock can't hand the client
+   * an anchor hours out — see lib/true-time.ts. `ensureTrueTime` is awaited
+   * first because this page does not otherwise resolve the request's time.
+   */
+  await ensureTrueTime();
+  const nowUnixFallback = trueNowUnix();
   const params = await props.searchParams;
   const current = defaultSeason();
   const rawSeason = Array.isArray(params.season) ? params.season[0] : params.season;

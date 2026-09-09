@@ -7,9 +7,10 @@ import { LeagueGroup } from "./league-group";
 import { LivePill } from "./live-badge";
 import { TopBar } from "./top-bar";
 import { useTimezone } from "./timezone-provider";
+import { useServerNow } from "./use-server-now";
 import { groupByLeague, isPopularMatch } from "@/lib/grouping";
 import { LIVE_POLL_SECONDS } from "@/lib/config";
-import { todayKey } from "@/lib/date";
+import { toDateKey } from "@/lib/date";
 import { t } from "@/lib/i18n";
 import type { MatchesPayload } from "@/lib/types";
 
@@ -17,26 +18,8 @@ interface MatchesViewProps {
   initialPayload: MatchesPayload;
 }
 
-/**
- * How often the live minute is recomputed locally (no network).
- *
- * One second, so the clock advances smoothly rather than jumping in 20s steps.
- * This is a pure local recompute against a cached timestamp — it spends no
- * requests, so a fast tick costs only a tiny re-render of the live rows.
- */
-const CLOCK_TICK_MS = 1_000;
-
 export function MatchesView({ initialPayload }: MatchesViewProps) {
   const timezone = useTimezone();
-
-  /**
-   * "Today" in the viewer's own timezone.
-   *
-   * On the first render this equals the server's assumption (the provider has
-   * no viewer to ask), so hydration matches. Once the browser's zone resolves,
-   * this recomputes and the selected day follows it.
-   */
-  const today = useMemo(() => todayKey(timezone), [timezone]);
 
   /**
    * The day the user explicitly navigated to, or null while they are simply on
@@ -45,13 +28,38 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
    * with no state to keep in sync.
    */
   const [pickedDate, setPickedDate] = useState<string | null>(null);
-  const date = pickedDate ?? today;
   const [payload, setPayload] = useState(initialPayload);
   const [filter, setFilter] = useState<MatchFilter>("all");
   const [liveOnly, setLiveOnly] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const liveCount = useMemo(
+    () => payload.matches.filter((match) => match.status === "live").length,
+    [payload.matches],
+  );
+
+  /**
+   * Current time, anchored to the timestamp the server sent with the payload
+   * and advanced by a monotonic timer — never read from the device clock, which
+   * on a misconfigured machine is hours out. See useServerNow.
+   */
+  const nowUnix = useServerNow(payload.nowUnix, liveCount > 0);
+
+  /**
+   * "Today" in the viewer's timezone, off the server's clock.
+   *
+   * Both inputs come from the server (the zone is resolved from the visitor's
+   * IP), so this matches what was rendered and hydration is clean — and a
+   * device with the wrong date can no longer land the app on the wrong day.
+   */
+  const today = useMemo(
+    () => toDateKey(new Date(nowUnix * 1000), timezone),
+    [nowUnix, timezone],
+  );
+
+  const date = pickedDate ?? today;
 
   /**
    * We're loading a new day exactly while the payload we hold isn't yet for the
@@ -60,9 +68,6 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
    */
   const showingSelectedDate = payload.date === date;
   const loading = !showingSelectedDate && !error;
-  // Seeded from the server payload so the first client render matches the HTML;
-  // advanced locally afterwards by the clock tick below.
-  const [nowUnix, setNowUnix] = useState(initialPayload.nowUnix);
 
   /**
    * The day the newest request was made for.
@@ -107,8 +112,8 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
         if (next.date !== wantedDate.current) return;
 
         // Replace state in one commit so the list never renders empty midway.
+        // `next.nowUnix` also re-anchors the clock, via useServerNow above.
         setPayload(next);
-        setNowUnix(next.nowUnix);
         setError(null);
       } catch (cause) {
         if (targetDate !== wantedDate.current) return;
@@ -116,11 +121,6 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
       }
     },
     [],
-  );
-
-  const liveCount = useMemo(
-    () => payload.matches.filter((match) => match.status === "live").length,
-    [payload.matches],
   );
 
   const handleSelectDate = useCallback(
@@ -171,9 +171,9 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
   const dayCanBeLive = useMemo(() => {
     if (!showingSelectedDate) return false;
     const shownNoon = Date.parse(`${date}T12:00:00Z`);
-    const todayNoon = Date.parse(`${todayKey(timezone)}T12:00:00Z`);
+    const todayNoon = Date.parse(`${today}T12:00:00Z`);
     return Math.abs(shownNoon - todayNoon) <= 24 * 60 * 60 * 1000;
-  }, [showingSelectedDate, date, timezone]);
+  }, [showingSelectedDate, date, today]);
 
   /**
    * When to poll so scores, goals and status update WITHOUT a manual reload.
@@ -222,16 +222,6 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [shouldPoll, date, load]);
-
-  /** Local clock tick so live minutes advance between polls, free of cost. */
-  useEffect(() => {
-    if (liveCount === 0) return;
-    const timer = setInterval(
-      () => setNowUnix(Math.floor(Date.now() / 1000)),
-      CLOCK_TICK_MS,
-    );
-    return () => clearInterval(timer);
-  }, [liveCount]);
 
   const counts = useMemo(
     () => ({

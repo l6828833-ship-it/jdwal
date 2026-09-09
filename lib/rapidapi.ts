@@ -33,6 +33,8 @@ import { leagueNameAr, stageAr, teamNameAr } from "./i18n";
 import { resolveBroadcast } from "./broadcast";
 import { compareMatches } from "./grouping";
 import { statusLabelAr } from "./clock";
+// Trusted clock (network-resolved UTC), never the host's system clock.
+import { nowUnix as trueNowUnix } from "./true-time";
 import type {
   ApiMeta,
   LeagueRef,
@@ -456,7 +458,7 @@ export async function getMatchesByDate(
 
   return {
     matches,
-    nowUnix: Math.floor(Date.now() / 1000),
+    nowUnix: trueNowUnix(),
     meta: meta(cached.fromCache, cached.ageSeconds, cached.budgetBlocked, cached.error),
   };
 }
@@ -531,7 +533,7 @@ export async function getMatchDetail(
 
   return {
     match: { ...base, stats: null },
-    nowUnix: Math.floor(Date.now() / 1000),
+    nowUnix: trueNowUnix(),
     meta: meta(cached.fromCache, cached.ageSeconds, cached.budgetBlocked, cached.error),
   };
 }

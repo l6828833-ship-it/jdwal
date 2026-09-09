@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MatchRow } from "./match-row";
+import { useServerNow } from "./use-server-now";
 import { LIVE_POLL_SECONDS } from "@/lib/config";
 import { t } from "@/lib/i18n";
 import type { Match } from "@/lib/types";
@@ -28,11 +29,14 @@ export function LeagueMatches({
   isCup,
 }: LeagueMatchesProps) {
   const [matches, setMatches] = useState(initialMatches);
-  const [nowUnix, setNowUnix] = useState(initialNowUnix);
+  /** Server time the current `matches` were normalized at. */
   const [reportedAtUnix, setReportedAtUnix] = useState(initialNowUnix);
   const seq = useRef(0);
 
   const liveCount = matches.filter((m) => m.status === "live").length;
+
+  // Server-anchored, monotonic: never the device clock. See useServerNow.
+  const nowUnix = useServerNow(reportedAtUnix, liveCount > 0);
 
   const refresh = useCallback(async () => {
     const id = ++seq.current;
@@ -45,10 +49,7 @@ export function LeagueMatches({
       if (id !== seq.current) return;
       if (body.matches) {
         setMatches(body.matches);
-        if (body.nowUnix) {
-          setNowUnix(body.nowUnix);
-          setReportedAtUnix(body.nowUnix);
-        }
+        if (body.nowUnix) setReportedAtUnix(body.nowUnix);
       }
     } catch {
       // Keep the current data on a failed refresh.
@@ -79,13 +80,6 @@ export function LeagueMatches({
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [liveCount, refresh]);
-
-  // Smooth per-second clock while live.
-  useEffect(() => {
-    if (liveCount === 0) return;
-    const timer = setInterval(() => setNowUnix(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(timer);
-  }, [liveCount]);
 
   const recent = matches
     .filter((m) => m.status === "finished" || m.status === "live")

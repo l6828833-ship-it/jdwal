@@ -29,6 +29,8 @@ import * as footballdata from "./sports-api";
 import * as rapidapi from "./rapidapi";
 import * as highlightly from "./highlightly";
 import * as selfhosted from "./selfhosted";
+// Trusted clock (network-resolved UTC), never the host's system clock.
+import { ensureTrueTime, nowUnix as trueNowUnix } from "./true-time";
 import type { ApiMeta, LeagueScorers, PlayerSearchResult } from "./types";
 
 export type ProviderName =
@@ -70,10 +72,41 @@ export function hasApiKey(): boolean {
   }
 }
 
+/**
+ * Guarantee a trusted clock before any data is shaped.
+ *
+ * Every function below stamps or interprets a time: the `nowUnix` the client
+ * anchors its live minute to, whether a fixture has kicked off, whether a
+ * "live" one has run long enough to be treated as over, which season to query.
+ * All of that has to be measured against real UTC, not the host machine's idea
+ * of it (see lib/true-time.ts).
+ *
+ * It goes here rather than in each provider's `apiFetch` because a CACHE HIT
+ * skips the upstream call entirely and still re-derives every one of those
+ * values — so the fetch path is not the boundary that matters. This is: the
+ * module every page and route handler already goes through.
+ *
+ * Costs a network round trip once per process, then nothing: the anchor is
+ * reused until it goes stale, and a stale one refreshes in the background
+ * without holding up a request.
+ */
+async function withTrueTime<T>(work: () => Promise<T>): Promise<T> {
+  await ensureTrueTime();
+  return work();
+}
+
 export function getMatchesByDate(
   dateKey: string,
   todayKeyValue: string,
   background = false,
+) {
+  return withTrueTime(() => dispatchMatchesByDate(dateKey, todayKeyValue, background));
+}
+
+function dispatchMatchesByDate(
+  dateKey: string,
+  todayKeyValue: string,
+  background: boolean,
 ) {
   switch (activeProvider()) {
     case "footballdata":
@@ -88,29 +121,36 @@ export function getMatchesByDate(
 }
 
 export function getMatchDetail(matchId: number) {
-  switch (activeProvider()) {
-    case "footballdata":
-      return footballdata.getMatchDetail(matchId);
-    case "rapidapi":
-      return rapidapi.getMatchDetail(matchId);
-    case "highlightly":
-      return highlightly.getMatchDetail(matchId);
-    default:
-      return selfhosted.getMatchDetail(matchId);
-  }
+  return withTrueTime(() => {
+    switch (activeProvider()) {
+      case "footballdata":
+        return footballdata.getMatchDetail(matchId);
+      case "rapidapi":
+        return rapidapi.getMatchDetail(matchId);
+      case "highlightly":
+        return highlightly.getMatchDetail(matchId);
+      default:
+        return selfhosted.getMatchDetail(matchId);
+    }
+  });
 }
 
 export function getLeagueStandings(leagueId: number, season?: number) {
-  switch (activeProvider()) {
-    case "footballdata":
-      return footballdata.getLeagueStandings(leagueId);
-    // RapidAPI has no standings endpoint, so it borrows Highlightly's.
-    case "rapidapi":
-    case "highlightly":
-      return highlightly.getLeagueStandings(leagueId);
-    default:
-      return selfhosted.getLeagueStandings(leagueId, season);
-  }
+  // Wrapped for the season default: with no explicit `season`, the backend is
+  // queried for the year the clock says it is, and a wrong year returns an
+  // empty table for every competition.
+  return withTrueTime(() => {
+    switch (activeProvider()) {
+      case "footballdata":
+        return footballdata.getLeagueStandings(leagueId);
+      // RapidAPI has no standings endpoint, so it borrows Highlightly's.
+      case "rapidapi":
+      case "highlightly":
+        return highlightly.getLeagueStandings(leagueId);
+      default:
+        return selfhosted.getLeagueStandings(leagueId, season);
+    }
+  });
 }
 
 /**
@@ -120,13 +160,19 @@ export function getLeagueStandings(leagueId: number, season?: number) {
  * empty set so the page simply shows no fixtures section under them.
  */
 export function getLeagueFixtures(leagueId: number) {
-  if (activeProvider() === "selfhosted") {
-    return selfhosted.getLeagueFixtures(leagueId);
-  }
-  return Promise.resolve({
+  return withTrueTime(async () => {
+    if (activeProvider() === "selfhosted") {
+      return selfhosted.getLeagueFixtures(leagueId);
+    }
+    return emptyLeagueFixtures();
+  });
+}
+
+function emptyLeagueFixtures() {
+  return {
     matches: [],
     isCup: false,
-    nowUnix: Math.floor(Date.now() / 1000),
+    nowUnix: trueNowUnix(),
     meta: {
       plan: null,
       requestsUsed: null,
@@ -135,7 +181,7 @@ export function getLeagueFixtures(leagueId: number) {
       budgetBlocked: false,
       ageSeconds: 0,
     },
-  });
+  };
 }
 
 export function getLeagues() {
@@ -202,10 +248,17 @@ export function hasPlayerSearch(): boolean {
 export function getLeagueScorers(
   leagueId: number,
 ): Promise<{ scorers: LeagueScorers; meta: ApiMeta }> {
-  if (activeProvider() === "selfhosted") {
-    return selfhosted.getLeagueScorers(leagueId);
-  }
-  return Promise.resolve({
+  // Season-scoped, like standings: see getLeagueStandings.
+  return withTrueTime(async () => {
+    if (activeProvider() === "selfhosted") {
+      return selfhosted.getLeagueScorers(leagueId);
+    }
+    return unavailableScorers();
+  });
+}
+
+function unavailableScorers(): { scorers: LeagueScorers; meta: ApiMeta } {
+  return {
     scorers: { available: false, seasonYear: null, scorers: [] },
     meta: {
       plan: null,
@@ -215,7 +268,7 @@ export function getLeagueScorers(
       budgetBlocked: false,
       ageSeconds: 0,
     },
-  });
+  };
 }
 
 /**
@@ -227,15 +280,21 @@ export function getLeagueScorers(
  * league tabs with Footballdata league ids in that mode.
  */
 export function getLeagueTeams(leagueId: number) {
-  return activeProvider() === "selfhosted"
-    ? selfhosted.getLeagueTeams(leagueId)
-    : footballdata.getLeagueTeams(leagueId);
+  // Season-scoped: a roster is requested for a specific year.
+  return withTrueTime(() =>
+    activeProvider() === "selfhosted"
+      ? selfhosted.getLeagueTeams(leagueId)
+      : footballdata.getLeagueTeams(leagueId),
+  );
 }
 
 export function getTeamPage(teamId: number) {
-  return activeProvider() === "selfhosted"
-    ? selfhosted.getTeamPage(teamId)
-    : footballdata.getTeamPage(teamId);
+  // Season-scoped AND returns fixtures, so it stamps match times too.
+  return withTrueTime(() =>
+    activeProvider() === "selfhosted"
+      ? selfhosted.getTeamPage(teamId)
+      : footballdata.getTeamPage(teamId),
+  );
 }
 
 /**

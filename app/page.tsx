@@ -1,7 +1,6 @@
 import { MatchesView } from "@/components/matches-view";
 import { getMatchesByDate, hasApiKey } from "@/lib/provider";
-import { todayKey } from "@/lib/date";
-import { resolveTimezoneFromRequest } from "@/lib/geo-timezone";
+import { resolveRequestTime } from "@/lib/geo-timezone";
 import { ApiKeyNotice, LoadErrorNotice, QuotaNotice } from "@/components/notices";
 import type { MatchesPayload } from "@/lib/types";
 
@@ -17,11 +16,17 @@ export default async function HomePage() {
     return <ApiKeyNotice />;
   }
 
-  // "Today" must mean today where the VIEWER is, not where the server runs.
-  // Resolve the same IP-based zone the app displays times in, so the date the
-  // header shows and the fixtures fetched match the user's actual day.
-  const { timezone } = await resolveTimezoneFromRequest();
-  const today = todayKey(timezone);
+  /**
+   * "Today" must mean today where the VIEWER is, not where the server runs —
+   * and it must be the real today, not whatever the host machine's clock says.
+   *
+   * `resolveRequestTime` settles both from the network: the zone from the
+   * visitor's IP, the clock from an external authority (lib/true-time.ts). It
+   * has to be one call, because a correct zone applied to a wrong clock still
+   * lands on the wrong date, and then the whole page is a different day's
+   * fixtures.
+   */
+  const { today } = await resolveRequestTime();
 
   let payload: MatchesPayload;
   try {
