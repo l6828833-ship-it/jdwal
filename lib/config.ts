@@ -5,13 +5,11 @@
 /**
  * Public site URL, used for SEO canonical links, Open Graph and the sitemap.
  *
- * Set `NEXT_PUBLIC_SITE_URL` in the environment to your real domain (e.g.
- * `https://jdwal.com`). Falls back to the Netlify URL so metadata is still
- * valid before a custom domain is wired up.
+ * Defaults to the production domain jdwal.co. Override with
+ * `NEXT_PUBLIC_SITE_URL` only if the domain ever changes.
  */
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://fascinating-lily-13d5e4.netlify.app"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://jdwal.co"
 ).replace(/\/$/, "");
 
 export interface PopularLeague {
