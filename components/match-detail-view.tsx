@@ -172,9 +172,13 @@ export function MatchDetailView({
                       isLive ? "text-live" : "text-foreground"
                     }`}
                   >
-                    <span>{match.score.home ?? 0}</span>
+                    {/* Each score in its own bidi isolate so the neutral "-"
+                        can't attach to a digit in this RTL page (which showed
+                        "2 - 1" as a garbled "1- -1"). Home stays first, so it
+                        sits under the home team on the right. */}
+                    <bdi>{match.score.home ?? 0}</bdi>
                     <span className="text-muted-dim">-</span>
-                    <span>{match.score.away ?? 0}</span>
+                    <bdi>{match.score.away ?? 0}</bdi>
                   </div>
                 ) : (
                   <span className="text-2xl font-bold text-muted-dim">–</span>

@@ -80,9 +80,15 @@ export function MatchRow({ match, nowUnix, reportedAtUnix }: MatchRowProps) {
               >
                 {match.score.confirmed ? (
                   <>
-                    <span>{match.score.home ?? 0}</span>
+                    {/* Home sits on the RIGHT (this is an RTL row), so home is
+                        the first flex child. Each number is wrapped in its own
+                        bidi isolate and the separator is a real minus sign that
+                        cannot migrate — together this stops the neutral "-"
+                        floating onto a digit, which rendered "2 - 1" as the
+                        garbled "1- -1". */}
+                    <bdi>{match.score.home ?? 0}</bdi>
                     <span className="text-muted-dim">-</span>
-                    <span>{match.score.away ?? 0}</span>
+                    <bdi>{match.score.away ?? 0}</bdi>
                   </>
                 ) : (
                   // Provider hasn't published the score; show nothing rather
