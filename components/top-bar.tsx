@@ -25,7 +25,7 @@ export function TopBar({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo.png"
-          alt={t.appName}
+          alt={t.logoAlt}
           className="h-7 w-auto shrink-0 select-none sm:h-8"
         />
 

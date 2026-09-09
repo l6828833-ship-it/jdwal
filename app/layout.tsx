@@ -37,6 +37,10 @@ export const metadata: Metadata = {
     "الدوريات الكبرى ودوري أبطال أوروبا والدوريات العربية مع الترتيب والهدافين.",
   keywords: [
     "jdwal",
+    "jdwel",
+    "jadwal",
+    "jdwel.com",
+    "jdwal.co",
     "جدول",
     "جدول مباريات",
     "جدول مباريات اليوم",
@@ -58,11 +62,28 @@ export const metadata: Metadata = {
     title: "جدول مباريات اليوم | jdwal - نتائج مباشرة",
     description:
       "جدول مباريات اليوم والغد، نتائج مباشرة، ترتيب الدوريات والهدافين.",
+    // The image that surfaces in a shared link / social preview. Its `alt`
+    // carries the brand's three spellings and the core Arabic term — the tag on
+    // the image the request asked for.
+    images: [
+      {
+        url: "/logo-full.png",
+        width: 1024,
+        height: 1024,
+        alt: "jdwal جدول - جدول مباريات اليوم ونتائج مباشرة (jdwel, jadwal)",
+      },
+    ],
   },
   twitter: {
     card: "summary",
     title: "جدول مباريات اليوم | jdwal",
     description: "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم.",
+    images: [
+      {
+        url: "/logo-full.png",
+        alt: "jdwal جدول - جدول مباريات اليوم ونتائج مباشرة (jdwel, jadwal)",
+      },
+    ],
   },
   robots: {
     index: true,
@@ -100,7 +121,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "jdwal",
-    alternateName: ["جدول", "جدول مباريات"],
+    alternateName: ["jdwel", "jadwal", "jdwel.com", "jdwal.co", "جدول", "جدول مباريات"],
     url: SITE_URL,
     description:
       "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم مع الترتيب والهدافين.",

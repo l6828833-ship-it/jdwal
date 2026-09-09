@@ -13,6 +13,13 @@ import { countryNameArOrNull } from "./countries";
 export const t = {
   appName: "جدول",
   appTagline: "نتائج مباشرة",
+  /**
+   * Logo alt text. A real description, not a keyword dump — it names the brand
+   * in all three spellings the site is known by (jdwal / jdwel / jadwal) and the
+   * core Arabic term, which is what an alt attribute legitimately contributes to
+   * search. Keyword-stuffing here would hurt both accessibility and ranking.
+   */
+  logoAlt: "jdwal جدول - جدول مباريات اليوم ونتائج مباشرة (jdwel, jadwal)",
 
   allMatches: "جميع المباريات",
   search: "بحث",
@@ -45,7 +52,7 @@ export const t = {
   noMatchesTop: "لا توجد مباريات في المسابقات الكبرى في هذا اليوم",
   noResults: "لا توجد نتائج مطابقة",
 
-  navMatches: "المباريات",
+  navMatches: "جدول مباريات",
   navTeams: "الفرق",
   navScorers: "الهدافون",
   navLeagues: "الدوريات",
