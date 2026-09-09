@@ -9,7 +9,13 @@ import type { LeagueSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: `${t.leaguesTitle} — ${t.appName}` };
+// Plain page name; the root layout's title.template appends "جدول مباريات - jdwal".
+export const metadata = {
+  title: t.leaguesTitle,
+  description:
+    "كل الدوريات والبطولات — دوري أبطال أوروبا، الدوريات الأوروبية الكبرى، " +
+    "الدوريات العربية وكأس العالم — مع جداول المباريات والترتيب.",
+};
 
 /**
  * Build the full display list by:

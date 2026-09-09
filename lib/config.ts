@@ -2,6 +2,18 @@
  * App configuration: league priority, polling cadence, request budget.
  */
 
+/**
+ * Public site URL, used for SEO canonical links, Open Graph and the sitemap.
+ *
+ * Set `NEXT_PUBLIC_SITE_URL` in the environment to your real domain (e.g.
+ * `https://jdwal.com`). Falls back to the Netlify URL so metadata is still
+ * valid before a custom domain is wired up.
+ */
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://fascinating-lily-13d5e4.netlify.app"
+).replace(/\/$/, "");
+
 export interface PopularLeague {
   /** Stable internal key. */
   key: string;
