@@ -59,6 +59,18 @@ export async function GET(request: NextRequest) {
       headers: {
         // Allow a shared CDN/proxy layer to absorb repeat polls too.
         "Cache-Control": `public, s-maxage=${LIVE_POLL_SECONDS}, stale-while-revalidate=${LIVE_POLL_SECONDS * 4}`,
+        /**
+         * Key the shared cache on the `date` query param.
+         *
+         * Netlify's edge varies only on its own Next.js params by default, so
+         * every date collided into ONE cache entry: a request for any day was
+         * served whichever day happened to be cached first. The client then saw
+         * `payload.date` never match the day it asked for and sat on "loading"
+         * forever. Varying on `date` gives each day its own entry.
+         */
+        "Netlify-Vary": "query=date",
+        // Same intent for any other standards-compliant CDN in front of this.
+        Vary: "Accept-Encoding",
       },
     });
   } catch (error) {
