@@ -16,23 +16,35 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(
   props: PageProps<"/match/[id]">,
 ): Promise<Metadata> {
+  // A single match page is thin, near-duplicate and short-lived: ~300 new ones
+  // a day, each ageing out of the data window into a "not found" notice within
+  // days. Indexing them bloats the index with disposable URLs, spends crawl
+  // budget on pages that soon 404, and dilutes the site's overall quality
+  // signal — which drags down the pages that DO carry keyword value (home,
+  // /leagues, /scorers). So every match page is noindex,follow: Google may
+  // still crawl and follow the links (to discover live fixtures and internal
+  // structure) but keeps the page out of the index. This also matches the
+  // intent already documented in app/sitemap.ts, which omits match URLs.
+  const noindex = { index: false, follow: true } as const;
+
   const { id } = await props.params;
   const matchId = Number(id);
   if (!hasApiKey() || !Number.isInteger(matchId)) {
-    return { title: t.appName };
+    return { title: t.appName, robots: noindex };
   }
 
   try {
     const result = await getMatchDetail(matchId);
-    if (!result) return { title: t.appName };
+    if (!result) return { title: t.appName, robots: noindex };
     const { home, away, league } = result.match;
     return {
       title: `${home.name} ${t.vs} ${away.name} — ${league.name}`,
       description: `${home.name} ${t.vs} ${away.name} في ${league.name} — النتيجة المباشرة والأهداف وتفاصيل المباراة.`,
       alternates: { canonical: `/match/${matchId}` },
+      robots: noindex,
     };
   } catch {
-    return { title: t.appName };
+    return { title: t.appName, robots: noindex };
   }
 }
 
