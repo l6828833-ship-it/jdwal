@@ -19,6 +19,19 @@ interface MatchesViewProps {
   initialPayload: MatchesPayload;
 }
 
+/** The day currently on screen, to fall back to if a load fails. */
+interface HeldDay {
+  date: string;
+  /** Whether that day is the viewer's today, which decides how it is restored. */
+  isToday: boolean;
+}
+
+interface LoadOptions {
+  /** A poll refreshing the day on screen, rather than a navigation. */
+  background?: boolean;
+  fallback?: HeldDay;
+}
+
 export function MatchesView({ initialPayload }: MatchesViewProps) {
   const timezone = useTimezone();
 
@@ -84,8 +97,43 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
    */
   const wantedDate = useRef(initialPayload.date);
 
+  /**
+   * After a failed load, go back to showing the day we already have.
+   *
+   * Without this, a failure left the selected day and the held day disagreeing
+   * forever, and `groups` is empty whenever they disagree — so one failed fetch
+   * replaced a full fixture list with nothing but an error line. That is bad on
+   * its own, and it is how "تعذّر تحميل البيانات" ended up as the homepage's
+   * Google snippet: Googlebot renders the page, its own timezone made the client
+   * ask for a different day than the server rendered, that request failed, and
+   * the crawler indexed the wreckage instead of the fixtures that had loaded.
+   *
+   * Reverting is the honest recovery: the error stays visible in the status
+   * strip, but the content on screen is real data for the day the selector
+   * shows. It cannot loop — the selected day now equals the held day, which is
+   * exactly the condition the loading effect requires to fire.
+   */
+  const revertToHeldDay = useCallback((fallback: HeldDay | undefined) => {
+    if (!fallback) return;
+    wantedDate.current = fallback.date;
+    // Pinning is what makes the selected day match the held day again. It is
+    // cleared instead when the held day IS today, so the view resumes following
+    // the viewer's clock rather than freezing on today's date string.
+    setPickedDate(fallback.isToday ? null : fallback.date);
+  }, []);
+
+  /**
+   * `fallbackDate` is the day we already hold data for.
+   *
+   * Passed in as an argument rather than read from state so `load` keeps its
+   * empty dependency list and stays referentially stable across renders. See
+   * the failure path below for what it is for.
+   */
   const load = useCallback(
-    async (targetDate: string, background = false) => {
+    async (
+      targetDate: string,
+      { background = false, fallback }: LoadOptions = {},
+    ) => {
       // A background poll must not steal the "wanted day" from a navigation
       // that is still in flight; it only ever refreshes the day on screen.
       if (!background) wantedDate.current = targetDate;
@@ -102,7 +150,10 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
           // The daily request budget is a distinct, expected condition — show a
           // clear Arabic notice rather than a generic failure.
           if (response.status === 503 && body?.code === "budget_exhausted") {
-            if (targetDate === wantedDate.current) setError(t.quotaNotice);
+            if (targetDate === wantedDate.current) {
+              setError(t.quotaNotice);
+              revertToHeldDay(fallback);
+            }
             return;
           }
           throw new Error(body?.error || `HTTP ${response.status}`);
@@ -119,9 +170,10 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
       } catch (cause) {
         if (targetDate !== wantedDate.current) return;
         setError(cause instanceof Error ? cause.message : t.loadFailed);
+        revertToHeldDay(fallback);
       }
     },
-    [],
+    [revertToHeldDay],
   );
 
   const handleSelectDate = useCallback(
@@ -148,8 +200,11 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
     // touching state, so nothing commits synchronously and no cascading render
     // occurs. Fetching in response to a changed dependency is the intended use.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load(date);
-  }, [date, payload.date, load]);
+    void load(date, {
+      // What to fall back to if this fails: the day we already have on screen.
+      fallback: { date: payload.date, isToday: payload.date === today },
+    });
+  }, [date, payload.date, today, load]);
 
   /**
    * Is a match on the current day due to kick off within the next ~15 minutes?
@@ -198,7 +253,7 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
       // background=true: a poll refreshes the day on screen and must never
       // take over the "wanted day" from a navigation still in flight.
       timer = setInterval(
-        () => void load(date, true),
+        () => void load(date, { background: true }),
         LIVE_POLL_SECONDS * 1000,
       );
     };
@@ -208,7 +263,7 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        void load(date, true);
+        void load(date, { background: true });
         start();
       } else {
         stop();
@@ -299,8 +354,17 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
         </div>
 
         {/* Fixed-height status strip: reserving the space means showing or
-            clearing a notice never shifts the list below it. */}
-        <div className="flex h-4 items-center justify-center" aria-live="polite">
+            clearing a notice never shifts the list below it.
+
+            `data-nosnippet` keeps this line out of search-result snippets. It
+            reports on the FETCH, not on the football, so it has no business
+            representing the page in a result — and it is one of the two strings
+            that leaked into the homepage's own Google listing. */}
+        <div
+          data-nosnippet
+          className="flex h-4 items-center justify-center"
+          aria-live="polite"
+        >
           {loading && (
             <span className="text-[0.68rem] font-medium text-muted-dim">···</span>
           )}
@@ -340,7 +404,12 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
             <LeagueGroupSkeleton rows={2} />
           </>
         ) : groups.length === 0 ? (
-          <p className="rounded-xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted">
+          /* Also nosnippet: on the failure path this is the load error, and an
+             empty-state line is never a useful search snippet either. */
+          <p
+            data-nosnippet
+            className="rounded-xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted"
+          >
             {emptyMessage}
           </p>
         ) : (

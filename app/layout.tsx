@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@/components/analytics";
 import { BottomNav } from "@/components/bottom-nav";
 import { ClockSync } from "@/components/clock-sync";
 import { TimezoneProvider } from "@/components/timezone-provider";
@@ -33,15 +34,29 @@ export const metadata: Metadata = {
     template: "%s | جدول مباريات - jdwal",
   },
   description:
-    "jdwal (جدول) — جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم: " +
+    "jdwal (جدول / jadwal) — جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم: " +
     "الدوريات الكبرى ودوري أبطال أوروبا والدوريات العربية مع الترتيب والهدافين.",
+  /**
+   * Kept for completeness and for the crawlers that still read it (Bing has
+   * historically, Yandex does). Google has ignored the keywords meta tag since
+   * 2009, so nothing here moves a Google ranking on its own — the terms that
+   * matter are the ones in the title, the headings, the body copy and the
+   * structured data, which is why "jadwal" appears in all of those too.
+   *
+   * "jadwal" is the spelling most people reach for when transliterating جدول,
+   * so it belongs alongside "jdwal" and "jdwel" everywhere the brand is stated.
+   */
   keywords: [
     "jdwal",
     "jdwel",
     "jadwal",
+    "jadwal live",
+    "jadwal مباريات",
+    "jadwal.co",
     "jdwel.com",
     "jdwal.co",
     "جدول",
+    "جدوال",
     "جدول مباريات",
     "جدول مباريات اليوم",
     "مباريات اليوم",
@@ -115,17 +130,50 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
    */
   const { timezone, resolved, nowUnix } = await resolveRequestTime();
 
-  // WebSite structured data: tells Google the site's name is "jdwal" and its
-  // primary purpose ("جدول مباريات"), which strengthens brand-term ranking.
+  /**
+   * Site-wide structured data: the `WebSite` and the `Organization` behind it.
+   *
+   * `alternateName` is the part that earns its keep. It is how the site tells
+   * Google that "jdwal", "jadwal", "jdwel" and "جدول" are the SAME entity, so a
+   * search for any spelling can resolve to this brand — a knowledge-graph
+   * signal, not a keyword list. Both nodes carry `@id`s so per-page markup can
+   * reference them instead of restating the whole entity (see app/page.tsx).
+   */
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "jdwal",
-    alternateName: ["jdwel", "jadwal", "jdwel.com", "jdwal.co", "جدول", "جدول مباريات"],
-    url: SITE_URL,
-    description:
-      "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم مع الترتيب والهدافين.",
-    inLanguage: "ar",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: "jdwal",
+        alternateName: [
+          "jadwal",
+          "jdwel",
+          "jdwal.co",
+          "jdwel.com",
+          "جدول",
+          "جدوال",
+          "جدول مباريات",
+        ],
+        url: SITE_URL,
+        description: t.seoMetaDescription,
+        inLanguage: "ar",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "jdwal",
+        alternateName: ["jadwal", "jdwel", "جدول"],
+        url: SITE_URL,
+        logo: {
+          "@type": "ImageObject",
+          url: `${SITE_URL}/logo-full.png`,
+          width: 1024,
+          height: 1024,
+        },
+      },
+    ],
   };
 
   return (
@@ -144,6 +192,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
           <BottomNav />
         </TimezoneProvider>
+        <Analytics />
       </body>
     </html>
   );

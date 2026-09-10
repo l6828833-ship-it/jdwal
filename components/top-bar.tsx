@@ -29,8 +29,13 @@ export function TopBar({
           className="h-7 w-auto shrink-0 select-none sm:h-8"
         />
 
+        {/* The page's only h1, so it states the page's subject rather than the
+            UI's label for the list. "جميع المباريات" described a filter state;
+            "جدول مباريات اليوم" describes the document — and it is the phrase
+            the page is actually searched for. Same length class, so the header
+            layout is unchanged. */}
         <h1 className="flex-1 truncate text-end text-sm font-semibold text-muted">
-          {t.allMatches}
+          {t.seoHeadingShort}
         </h1>
 
         <button

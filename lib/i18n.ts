@@ -172,6 +172,45 @@ export const t = {
   loading: "جارٍ التحميل…",
   minuteShort: "د",
   vs: "ضد",
+
+  // -------------------------------------------------------------------------
+  // Search copy
+  //
+  // Ordinary Arabic prose that happens to contain the terms the site is looked
+  // up by. It is written to be read: a visitor who scrolls to the bottom of the
+  // fixture list gets a plain description of what the site covers, and Google
+  // gets body text about football instead of having to build a snippet out of
+  // UI labels. The brand's spellings appear once each, in a sentence — a list of
+  // repeated keywords would read as spam to both audiences.
+  // -------------------------------------------------------------------------
+  /** The homepage h1. Short enough for the header bar, and the primary term. */
+  seoHeadingShort: "جدول مباريات اليوم",
+  seoHeading: "جدول مباريات اليوم ونتائج مباشرة",
+  /**
+   * Mentions the day's real fixture count, so the paragraph is specific to this
+   * render rather than boilerplate repeated on every crawl.
+   */
+  seoIntro: (matchCount: number, date: string) =>
+    matchCount > 0
+      ? `يعرض جدول مباريات اليوم (${date}) ${matchCount} مباراة بمواعيدها بتوقيتك المحلي، ` +
+        `مع النتائج المباشرة لحظة بلحظة وأهداف كل مباراة وترتيب الدوريات وقائمة الهدافين. ` +
+        `تشمل التغطية الدوريات الأوروبية الكبرى ودوري أبطال أوروبا والدوري الأوروبي ` +
+        `والدوريات العربية من السعودي والمصري والمغربي والإماراتي والقطري والتونسي والجزائري.`
+      : `جدول مباريات كرة القدم بمواعيدها بتوقيتك المحلي، مع النتائج المباشرة وأهداف ` +
+        `كل مباراة وترتيب الدوريات وقائمة الهدافين — الدوريات الأوروبية الكبرى ` +
+        `ودوري أبطال أوروبا والدوريات العربية.`,
+  seoBrands:
+    "جدول (jdwal) موقع عربي لمتابعة مواعيد المباريات والنتائج المباشرة، " +
+    "ويُكتب اسمه أيضاً jadwal أو jdwel. لا حاجة لتسجيل الدخول، والمواعيد تُحوَّل " +
+    "تلقائياً إلى توقيت بلدك.",
+  seoLinksLabel: "أقسام الموقع",
+  seoLinkLeagues: "ترتيب الدوريات",
+  seoLinkScorers: "ترتيب الهدافين",
+  seoLinkPlayers: "بحث اللاعبين",
+  /** Shared by the page description and the WebPage structured data. */
+  seoMetaDescription:
+    "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم: الدوريات الكبرى " +
+    "ودوري أبطال أوروبا والدوريات العربية مع الترتيب والهدافين.",
 } as const;
 
 /** Arabic names for leagues outside the pinned popular list. */

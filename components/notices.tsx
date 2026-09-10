@@ -1,6 +1,19 @@
 import { t } from "@/lib/i18n";
 
 /**
+ * Every notice below is marked `data-nosnippet`.
+ *
+ * These blocks describe the state of the BACKEND, never the football data the
+ * page is about, so they must never be eligible as search-result snippet text.
+ * Google honours `data-nosnippet` on a container and excludes its text from the
+ * snippet while still indexing the page.
+ *
+ * This is not hypothetical: a crawl that landed while the backend was failing
+ * put "تعذّر تحميل البيانات" into the homepage's own Google result, so the site's
+ * headline listing advertised an error instead of the day's fixtures. Suppressing
+ * the snippet is the last line of defence; the first two are not failing (the
+ * backend fix) and not indexing a failed render (see `app/page.tsx`).
+ *
  * Shown when the selected backend has no credentials configured. Scores are
  * never faked to fill the gap.
  *
@@ -11,7 +24,10 @@ import { t } from "@/lib/i18n";
  */
 export function ApiKeyNotice() {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
+    <div
+      data-nosnippet
+      className="flex flex-1 items-center justify-center px-4 py-16"
+    >
       <div className="max-w-sm rounded-xl border border-border bg-surface p-6 text-center">
         <h1 className="mb-2 text-base font-bold text-foreground">
           مزود البيانات غير مُعد
@@ -32,7 +48,10 @@ interface LoadErrorNoticeProps {
 
 export function LoadErrorNotice({ message }: LoadErrorNoticeProps) {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
+    <div
+      data-nosnippet
+      className="flex flex-1 items-center justify-center px-4 py-16"
+    >
       <div className="max-w-sm rounded-xl border border-border bg-surface p-6 text-center">
         <h1 className="mb-2 text-base font-bold text-foreground">{t.loadFailed}</h1>
         <p dir="ltr" className="break-words text-xs leading-relaxed text-muted">
@@ -46,7 +65,10 @@ export function LoadErrorNotice({ message }: LoadErrorNoticeProps) {
 /** Daily/monthly request budget reached; cached data only. */
 export function QuotaNotice() {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
+    <div
+      data-nosnippet
+      className="flex flex-1 items-center justify-center px-4 py-16"
+    >
       <div className="max-w-sm rounded-xl border border-border bg-surface p-6 text-center">
         <h1 className="mb-2 text-base font-bold text-foreground">{t.quotaTitle}</h1>
         <p className="text-sm leading-relaxed text-muted">{t.quotaBody}</p>
@@ -61,7 +83,10 @@ export function QuotaNotice() {
  */
 export function PlanGatedNotice() {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
+    <div
+      data-nosnippet
+      className="flex flex-1 items-center justify-center px-4 py-16"
+    >
       <div className="max-w-sm rounded-xl border border-border bg-surface p-6 text-center">
         <h1 className="mb-2 text-base font-bold text-foreground">
           {t.notOnPlanTitle}
