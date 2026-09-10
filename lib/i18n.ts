@@ -7,7 +7,7 @@
  * keeps the UI honest instead of inventing bad Arabic.
  */
 
-import { POPULAR_LEAGUES } from "./config";
+import { matchesLeagueId, POPULAR_LEAGUES } from "./config";
 import { countryNameArOrNull } from "./countries";
 
 export const t = {
@@ -710,8 +710,11 @@ function stripClubNoise(value: string): string {
 
 /** Arabic league name, falling back to the provider's name. */
 export function leagueNameAr(leagueId: number, original: string): string {
+  // Matched in the ACTIVE provider's numbering only — see `matchesLeagueId`. The
+  // cross-provider union this used to test is why the FA Cup was rendering as
+  // "دوري أبطال أوروبا".
   for (const league of POPULAR_LEAGUES) {
-    if (league.ids.includes(leagueId)) return league.ar;
+    if (matchesLeagueId(league, leagueId)) return league.ar;
   }
 
   const name = normalize(original);

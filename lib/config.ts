@@ -22,6 +22,35 @@ export const SITE_URL = (
 export const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-VQHYWT8Y4J";
 
+export type ProviderName =
+  | "selfhosted"
+  | "highlightly"
+  | "footballdata"
+  | "rapidapi";
+
+/**
+ * Which backend is serving data. Re-exported from lib/provider.ts, which is the
+ * documented entry point for everything else.
+ *
+ * It lives HERE, in the module with no imports of its own, because the league
+ * tables below have to know it: a competition id only means something inside one
+ * provider's numbering, so matching an id without knowing whose it is produces
+ * confident nonsense. Putting it in provider.ts and importing that from here
+ * would close a cycle (provider -> selfhosted -> i18n -> config).
+ */
+export function activeProvider(): ProviderName {
+  switch (process.env.SPORTS_PROVIDER) {
+    case "footballdata":
+      return "footballdata";
+    case "rapidapi":
+      return "rapidapi";
+    case "highlightly":
+      return "highlightly";
+    default:
+      return "selfhosted";
+  }
+}
+
 export interface PopularLeague {
   /** Stable internal key. */
   key: string;
@@ -328,6 +357,41 @@ const YOUTH_OR_SECONDARY = new RegExp(
   "i",
 );
 
+/**
+ * Does `leagueId` identify `entry` — in the numbering of the ACTIVE provider?
+ *
+ * `entry.ids` is a UNION across three backends, and that made it unsafe to match
+ * against on its own: an id is only meaningful inside one provider's namespace,
+ * and the namespaces collide. Concretely, 45 is Footballdata.io's id for the
+ * Champions League AND API-Football's id for the FA Cup. Matching the union
+ * meant that under the self-hosted backend (API-Football numbering) the FA Cup
+ * was identified as the Champions League — it inherited its Arabic name and its
+ * popularity rank, so /scorers showed two tabs both reading
+ * "دوري أبطال أوروبا", one of which was the FA Cup.
+ *
+ * So each provider is matched only against ids that are actually its own:
+ *
+ *   selfhosted   `apiFootballId` — the backend normalizes everything to these
+ *   highlightly  `highlightlyId`, when known; 0 means unmapped, and falling back
+ *                to the union would reintroduce exactly the collision above
+ *   others       the union, because Footballdata.io's ids are recorded nowhere
+ *                else. Those providers are fallbacks, so this keeps their
+ *                existing behaviour rather than guessing at ids to split out.
+ *
+ * A league that matches no id still resolves by NAME through the alias tables,
+ * which is how competitions outside this list have always been handled.
+ */
+export function matchesLeagueId(entry: PopularLeague, leagueId: number): boolean {
+  switch (activeProvider()) {
+    case "selfhosted":
+      return entry.apiFootballId === leagueId;
+    case "highlightly":
+      return entry.highlightlyId > 0 && entry.highlightlyId === leagueId;
+    default:
+      return entry.ids.includes(leagueId);
+  }
+}
+
 export function leaguePopularity(
   leagueId: number,
   leagueName: string,
@@ -335,7 +399,7 @@ export function leaguePopularity(
   const name = normalize(leagueName);
 
   for (let i = 0; i < POPULAR_LEAGUES.length; i++) {
-    if (POPULAR_LEAGUES[i].ids.includes(leagueId)) {
+    if (matchesLeagueId(POPULAR_LEAGUES[i], leagueId)) {
       return { rank: i, entry: POPULAR_LEAGUES[i] };
     }
   }

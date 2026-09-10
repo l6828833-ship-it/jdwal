@@ -25,6 +25,7 @@
  * degrades the same way it did before when one of them is selected.
  */
 
+import { activeProvider } from "./config";
 import * as footballdata from "./sports-api";
 import * as rapidapi from "./rapidapi";
 import * as highlightly from "./highlightly";
@@ -33,24 +34,16 @@ import * as selfhosted from "./selfhosted";
 import { ensureTrueTime, nowUnix as trueNowUnix } from "./true-time";
 import type { ApiMeta, LeagueScorers, PlayerSearchResult } from "./types";
 
-export type ProviderName =
-  | "selfhosted"
-  | "highlightly"
-  | "footballdata"
-  | "rapidapi";
-
-export function activeProvider(): ProviderName {
-  switch (process.env.SPORTS_PROVIDER) {
-    case "footballdata":
-      return "footballdata";
-    case "rapidapi":
-      return "rapidapi";
-    case "highlightly":
-      return "highlightly";
-    default:
-      return "selfhosted";
-  }
-}
+/**
+ * Defined in lib/config.ts and re-exported here, which stays the entry point.
+ *
+ * The league tables in config.ts need to know the active provider to interpret a
+ * competition id at all, and config.ts imports nothing — so the definition lives
+ * there and this file borrows it, rather than each parsing SPORTS_PROVIDER and
+ * drifting apart.
+ */
+export type { ProviderName } from "./config";
+export { activeProvider };
 
 /**
  * Whether the selected backend is configured enough to try.
