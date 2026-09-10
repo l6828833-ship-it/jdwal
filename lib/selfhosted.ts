@@ -228,9 +228,36 @@ function refreshQuota(): void {
   })();
 }
 
+/**
+ * Default per-request budget.
+ *
+ * Sized to fit inside the host's function budget, which is the real constraint:
+ * the ceiling covers the ENTIRE streamed response, and a render that outruns it
+ * is killed MID-STREAM — which reaches the browser as a truncated RSC payload
+ * (React #412 "Connection closed") rather than a handled error. Failing early is
+ * strictly better, because `getCached` serves the last good value on error, so a
+ * slow backend degrades to slightly stale data on a page that renders.
+ */
+const DEFAULT_TIMEOUT_MS = 6_000;
+
+/**
+ * A longer budget for the few calls the backend cannot answer from one upstream
+ * request.
+ *
+ * The cup leaderboards are COMPUTED: the backend tallies goal events across
+ * every finished league-phase game, so its own work grows with the season
+ * (~180 games by the end of a Champions League league phase) and a cold cache —
+ * or a cold Cloud Run instance that has to start up first — routinely needs more
+ * than 6s. That was exactly the failure on /scorers: the page rendered
+ * "تعذّر تحميل البيانات" with an abort, not a backend fault. Still well inside
+ * the 30s function budget declared in vercel.json.
+ */
+const SLOW_TIMEOUT_MS = 15_000;
+
 async function apiFetch<T>(
   path: string,
   params: Record<string, string | number | undefined> = {},
+  { timeoutMs = DEFAULT_TIMEOUT_MS }: { timeoutMs?: number } = {},
 ): Promise<T> {
   scopeBudget();
 
@@ -248,19 +275,7 @@ async function apiFetch<T>(
       // Caching is handled in lib/cache.ts so the backend's quota can be
       // accounted for precisely; Next's fetch cache must not double-layer.
       cache: "no-store",
-      /**
-       * Sized to fit inside the host's function budget, which is the real
-       * constraint — Netlify kills a synchronous invocation at 10s by default,
-       * and that ceiling covers the ENTIRE streamed response.
-       *
-       * The old 15s could not fit: a single slow call already outran the budget,
-       * so the function was killed mid-stream and the browser got a truncated
-       * RSC payload (React #412 "Connection closed") instead of a handled error.
-       * Failing at 6s is strictly better, because `getCached` serves the last
-       * good value on error — so a slow backend degrades to slightly stale data
-       * on a page that renders, rather than a page that dies.
-       */
-      signal: AbortSignal.timeout(6_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     throw new SelfHostedError(
@@ -1447,7 +1462,13 @@ export async function getLeagueScorers(
         const body = await apiFetch<{
           topScorers?: RawScorerEntry[];
           error?: string;
-        }>("/players/getTopScorers", { league: leagueId, season: currentSeason() });
+        }>(
+          "/players/getTopScorers",
+          { league: leagueId, season: currentSeason() },
+          // Computed for the cups, so this is the one call that legitimately
+          // takes longer than a single upstream round trip.
+          { timeoutMs: SLOW_TIMEOUT_MS },
+        );
         return isEmpty(body) ? [] : body.topScorers ?? [];
       } catch (error) {
         /**
