@@ -12,6 +12,16 @@ export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://jdwal.co"
 ).replace(/\/$/, "");
 
+/**
+ * Google Analytics 4 measurement id.
+ *
+ * Overridable so a fork or a staging deployment can point at its own property —
+ * or send nothing at all by setting the variable to an empty string, which turns
+ * the tag off (see components/analytics.tsx).
+ */
+export const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-VQHYWT8Y4J";
+
 export interface PopularLeague {
   /** Stable internal key. */
   key: string;
