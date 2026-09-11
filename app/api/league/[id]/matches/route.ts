@@ -1,4 +1,5 @@
 import { getLeagueFixtures } from "@/lib/provider";
+import { logFailure } from "@/lib/errors";
 
 /**
  * A competition's matches, polled by the league page so scores and the live
@@ -19,7 +20,9 @@ export async function GET(
     const { matches, isCup, nowUnix } = await getLeagueFixtures(leagueId);
     return Response.json({ matches, isCup, nowUnix });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return Response.json({ error: message }, { status: 502 });
+    // The message is NOT forwarded. It names the backend and quotes its URL,
+    // and this response is readable by anyone; the detail goes to the log.
+    logFailure("api/league-matches", error);
+    return Response.json({ error: "upstream_unavailable" }, { status: 502 });
   }
 }

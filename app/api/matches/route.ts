@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getMatchesByDate } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
+import { logFailure } from "@/lib/errors";
 import { isValidDateKey, dateKeyDiff } from "@/lib/date";
 import { resolveRequestTime } from "@/lib/geo-timezone";
 import { DATE_RANGE_DAYS, LIVE_CACHE_CONTROL } from "@/lib/config";
@@ -92,9 +93,15 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof BudgetExhaustedError) {
-      return Response.json({ error: error.message, code: "budget_exhausted" }, { status: 503 });
+      // `code` is the contract the client reads; the message is not forwarded.
+      return Response.json(
+        { error: "budget_exhausted", code: "budget_exhausted" },
+        { status: 503 },
+      );
     }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return Response.json({ error: message }, { status: 502 });
+    // The message is NOT forwarded. It names the backend and quotes its URL,
+    // and this response is readable by anyone; the detail goes to the log.
+    logFailure("api/matches", error);
+    return Response.json({ error: "upstream_unavailable" }, { status: 502 });
   }
 }

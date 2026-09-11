@@ -1,20 +1,32 @@
 import { NavLink } from "@/components/nav-link";
 import { Crest, Flag } from "@/components/crest";
-import { ApiKeyNotice, EmptyState, LoadErrorNotice } from "@/components/notices";
+import { ApiKeyNotice, EmptyState } from "@/components/notices";
 import { getLeagues, hasApiKey } from "@/lib/provider";
 import { LEAGUE_LIST_LIMIT, POPULAR_LEAGUES } from "@/lib/config";
 import { countryCode, countryNameAr } from "@/lib/countries";
+import { logFailure } from "@/lib/errors";
+import type { Metadata } from "next";
 import { leagueNameAr, t } from "@/lib/i18n";
 import type { LeagueSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 // Plain page name; the root layout's title.template appends "جدول مباريات - jdwal".
-export const metadata = {
+const DESCRIPTION =
+  "كل الدوريات والبطولات — دوري أبطال أوروبا، الدوريات الأوروبية الكبرى، " +
+  "الدوريات العربية وكأس العالم — مع جداول المباريات والترتيب.";
+
+/**
+ * Always indexable, because this page always has content.
+ *
+ * Unlike the fixture pages, its substance is the pinned POPULAR_LEAGUES, which
+ * are a local constant — the backend only enriches them with logos and countries
+ * and adds today's unpinned competitions. So an outage cannot empty this page,
+ * and it needs no indexability probe.
+ */
+export const metadata: Metadata = {
   title: t.leaguesTitle,
-  description:
-    "كل الدوريات والبطولات — دوري أبطال أوروبا، الدوريات الأوروبية الكبرى، " +
-    "الدوريات العربية وكأس العالم — مع جداول المباريات والترتيب.",
+  description: DESCRIPTION,
   alternates: { canonical: "/leagues" },
 };
 
@@ -78,15 +90,23 @@ function buildLeagueList(fromProvider: LeagueSummary[]): LeagueSummary[] {
 export default async function LeaguesPage() {
   if (!hasApiKey()) return <ApiKeyNotice />;
 
+  /**
+   * A failure here DEGRADES the page, it does not replace it.
+   *
+   * The catalogue call only enriches the pinned leagues (logos, countries) and
+   * appends today's unpinned competitions. The pinned list itself is a local
+   * constant, so there is a perfectly good page to render without the backend —
+   * and returning a full-page error instead was part of why an outage papered the
+   * whole site with the same notice. Now the list still renders, with one line
+   * saying the extra detail is missing.
+   */
   let fromProvider: LeagueSummary[] = [];
+  let degraded = false;
   try {
     ({ leagues: fromProvider } = await getLeagues());
   } catch (error) {
-    return (
-      <LoadErrorNotice
-        message={error instanceof Error ? error.message : String(error)}
-      />
-    );
+    logFailure("leagues", error);
+    degraded = true;
   }
 
   const allLeagues = buildLeagueList(fromProvider);
@@ -101,6 +121,17 @@ export default async function LeaguesPage() {
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-3 py-3 sm:px-4">
+        {/* nosnippet: a service-status line must never represent the page in a
+            search result. See components/notices.tsx. */}
+        {degraded && (
+          <p
+            data-nosnippet
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-center text-[0.7rem] text-muted"
+          >
+            {t.leaguesDegraded}
+          </p>
+        )}
+
         {leagues.length === 0 ? (
           <EmptyState title={t.noResults} />
         ) : (

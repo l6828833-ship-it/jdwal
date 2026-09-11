@@ -1,6 +1,7 @@
 import { getMatchDetail, isPlanGatedError } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
 import { LIVE_CACHE_CONTROL } from "@/lib/config";
+import { logFailure } from "@/lib/errors";
 
 /**
  * One match, including stats. Polled by the detail page on the same interval as
@@ -30,8 +31,9 @@ export async function GET(
     });
   } catch (error) {
     if (error instanceof BudgetExhaustedError) {
+      // `code` is the contract the client reads; the message is not forwarded.
       return Response.json(
-        { error: error.message, code: "budget_exhausted" },
+        { error: "budget_exhausted", code: "budget_exhausted" },
         { status: 503 },
       );
     }
@@ -41,7 +43,9 @@ export async function GET(
         { status: 403 },
       );
     }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return Response.json({ error: message }, { status: 502 });
+    // The message is NOT forwarded. It names the backend and quotes its URL,
+    // and this response is readable by anyone; the detail goes to the log.
+    logFailure(`api/match/${matchId}`, error);
+    return Response.json({ error: "upstream_unavailable" }, { status: 502 });
   }
 }

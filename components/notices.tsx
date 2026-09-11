@@ -1,3 +1,4 @@
+import { developmentDetail, publicErrorMessage } from "@/lib/errors";
 import { t } from "@/lib/i18n";
 
 /**
@@ -43,10 +44,22 @@ export function ApiKeyNotice() {
 }
 
 interface LoadErrorNoticeProps {
-  message: string;
+  /**
+   * The thrown value, NOT a message.
+   *
+   * Taking the error itself rather than a string is the whole point: a caller
+   * cannot accidentally hand this component an internal message, because
+   * choosing what to display is this component's job, not the caller's. It used
+   * to take `message: string` and every call site passed `error.message`
+   * straight through — which is how the backend's private URL ended up rendered
+   * on the page.
+   */
+  error?: unknown;
 }
 
-export function LoadErrorNotice({ message }: LoadErrorNoticeProps) {
+export function LoadErrorNotice({ error }: LoadErrorNoticeProps) {
+  const detail = developmentDetail(error);
+
   return (
     <div
       data-nosnippet
@@ -54,9 +67,23 @@ export function LoadErrorNotice({ message }: LoadErrorNoticeProps) {
     >
       <div className="max-w-sm rounded-xl border border-border bg-surface p-6 text-center">
         <h1 className="mb-2 text-base font-bold text-foreground">{t.loadFailed}</h1>
-        <p dir="ltr" className="break-words text-xs leading-relaxed text-muted">
-          {message}
+        <p className="text-sm leading-relaxed text-muted">
+          {publicErrorMessage(error)}
         </p>
+        {/**
+         * The real message, in development only — `developmentDetail` returns
+         * null in a production build, so this branch cannot ship. `dir="ltr"`
+         * because it is English technical text whose punctuation reorders under
+         * the page's RTL direction.
+         */}
+        {detail && (
+          <p
+            dir="ltr"
+            className="mt-3 break-words border-t border-border pt-3 text-[0.68rem] leading-relaxed text-muted-dim"
+          >
+            {detail}
+          </p>
+        )}
       </div>
     </div>
   );

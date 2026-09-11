@@ -1,5 +1,6 @@
 "use client";
 
+import { developmentDetail, publicErrorMessage } from "@/lib/errors";
 import { t } from "@/lib/i18n";
 
 /**
@@ -24,21 +25,40 @@ export default function RouteError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const detail = developmentDetail(error);
+
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
+    <div data-nosnippet className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="max-w-sm rounded-xl border border-border bg-surface p-6 text-center">
         <h1 className="mb-2 text-base font-bold text-foreground">
           {t.loadFailed}
         </h1>
-        {/**
-         * `dir="ltr"` because the message is an English technical string; left to
-         * the page's RTL direction its punctuation reorders and becomes hard to
-         * read. In production Next.js replaces it with a digest, so this stays
-         * useful for reporting without leaking a stack trace.
-         */}
-        <p dir="ltr" className="break-words text-xs leading-relaxed text-muted">
-          {error.message || error.digest || "Unknown error"}
+        <p className="text-sm leading-relaxed text-muted">
+          {publicErrorMessage(error)}
         </p>
+
+        {/**
+         * The raw message in development, the digest in production.
+         *
+         * Next.js already redacts a SERVER error's message down to a digest
+         * before it reaches this component, but a CLIENT-side throw arrives
+         * intact — so printing `error.message` unconditionally could still put an
+         * internal string on the page. `developmentDetail` returns null in a
+         * production build, which leaves the digest: a reference a user can quote
+         * in a bug report and which matches the server log, without describing
+         * the failure.
+         *
+         * `dir="ltr"` because it is English technical text whose punctuation
+         * reorders under the page's RTL direction.
+         */}
+        {(detail || error.digest) && (
+          <p
+            dir="ltr"
+            className="mt-3 break-words border-t border-border pt-3 text-[0.68rem] leading-relaxed text-muted-dim"
+          >
+            {detail || error.digest}
+          </p>
+        )}
         <button
           type="button"
           onClick={reset}
