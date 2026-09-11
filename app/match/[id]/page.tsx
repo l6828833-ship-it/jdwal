@@ -1,13 +1,14 @@
+import { notFound } from "next/navigation";
 import { MatchDetailView } from "@/components/match-detail-view";
-import { BackHeader } from "@/components/back-header";
 import {
   ApiKeyNotice,
-  EmptyState,
   LoadErrorNotice,
   PlanGatedNotice,
   QuotaNotice,
 } from "@/components/notices";
 import { getMatchDetail, hasApiKey, isPlanGatedError } from "@/lib/provider";
+import { classifyFailure, logFailure } from "@/lib/errors";
+import { NOINDEX_FOLLOW } from "@/lib/seo";
 import { t } from "@/lib/i18n";
 import type { Metadata } from "next";
 
@@ -25,17 +26,25 @@ export async function generateMetadata(
   // still crawl and follow the links (to discover live fixtures and internal
   // structure) but keeps the page out of the index. This also matches the
   // intent already documented in app/sitemap.ts, which omits match URLs.
-  const noindex = { index: false, follow: true } as const;
+  const noindex = NOINDEX_FOLLOW;
+  /**
+   * A URL with no match behind it renders the 404 page, so it must not claim a
+   * canonical. Without `canonical: null` it inherited the root layout's `/`,
+   * which told Google that every dead match URL was the homepage.
+   */
+  const gone: Metadata = {
+    title: t.notFoundTitle,
+    robots: noindex,
+    alternates: { canonical: null },
+  };
 
   const { id } = await props.params;
   const matchId = Number(id);
-  if (!hasApiKey() || !Number.isInteger(matchId)) {
-    return { title: t.appName, robots: noindex };
-  }
+  if (!hasApiKey() || !Number.isInteger(matchId)) return gone;
 
   try {
     const result = await getMatchDetail(matchId);
-    if (!result) return { title: t.appName, robots: noindex };
+    if (!result) return gone;
     const { home, away, league } = result.match;
     return {
       title: `${home.name} ${t.vs} ${away.name} — ${league.name}`,
@@ -44,7 +53,9 @@ export async function generateMetadata(
       robots: noindex,
     };
   } catch {
-    return { title: t.appName, robots: noindex };
+    // A failure is not a missing match: keep the generic title and stay
+    // noindex, but do not assert a canonical we cannot verify.
+    return { title: t.appName, robots: noindex, alternates: { canonical: null } };
   }
 }
 
@@ -53,40 +64,41 @@ export default async function MatchPage(props: PageProps<"/match/[id]">) {
 
   const { id } = await props.params;
   const matchId = Number(id);
-  if (!Number.isInteger(matchId) || matchId <= 0) return <MatchNotFound />;
+  if (!Number.isInteger(matchId) || matchId <= 0) notFound();
 
   let result: Awaited<ReturnType<typeof getMatchDetail>>;
   try {
     result = await getMatchDetail(matchId);
   } catch (error) {
     if (isPlanGatedError(error)) return <PlanGatedNotice />;
-    if (error instanceof Error && /budget/i.test(error.message)) {
-      return <QuotaNotice />;
-    }
-    return (
-      <LoadErrorNotice
-        message={error instanceof Error ? error.message : String(error)}
-      />
-    );
+    if (classifyFailure(error) === "quota") return <QuotaNotice />;
+    logFailure(`match/${matchId}`, error);
+    return <LoadErrorNotice error={error} />;
   }
 
-  // A missing match is almost always a stale link (an id from an older data
-  // source, or a fixture that has aged out of the window). Show a calm notice
-  // with a way back, not a bare 404.
-  if (!result) return <MatchNotFound />;
+  /**
+   * A missing match renders the shared 404 page.
+   *
+   * This replaces a bespoke "match not available" notice. The original reason for
+   * that notice — not wanting to show a bare 404 — is satisfied now that
+   * app/not-found.tsx is a proper Arabic page with links back, and using it means
+   * one dead-end experience instead of two.
+   *
+   * The RESPONSE STATUS stays 200, and no amount of moving this call changes
+   * that: the root layout resolves the request's timezone and clock over the
+   * network, so every route streams and the status is committed before this code
+   * runs. Raising it from `generateMetadata` instead was measured — still 200, as
+   * was removing the segment's `loading.tsx`. So the technically-correct 404 is
+   * out of reach here without restructuring the layout, and what keeps these URLs
+   * out of Google is the `noindex` above, which is authoritative regardless of
+   * status. A real 404 would need this check to move to middleware, which would
+   * mean an upstream lookup on every match request.
+   */
+  if (!result) notFound();
 
   return (
     <MatchDetailView initialMatch={result.match} initialNowUnix={result.nowUnix} />
   );
 }
 
-function MatchNotFound() {
-  return (
-    <>
-      <BackHeader title={t.matchInfo} />
-      <main className="flex flex-1 flex-col px-3 py-6 sm:px-4">
-        <EmptyState title={t.matchNotFound} hint={t.matchNotFoundHint} />
-      </main>
-    </>
-  );
-}
+
