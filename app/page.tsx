@@ -5,6 +5,8 @@ import { getMatchesByDate, hasApiKey } from "@/lib/provider";
 import { resolveRequestTime } from "@/lib/geo-timezone";
 import { ApiKeyNotice, LoadErrorNotice, QuotaNotice } from "@/components/notices";
 import { SITE_URL } from "@/lib/config";
+import { classifyFailure, logFailure } from "@/lib/errors";
+import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
 import { t } from "@/lib/i18n";
 import type { MatchesPayload } from "@/lib/types";
 
@@ -32,33 +34,19 @@ async function fixturesAvailable(today: string): Promise<boolean> {
 }
 
 /**
- * A render with no fixtures must not be indexed.
- *
- * The homepage is the site's most valuable URL and it is rendered per request,
- * so whatever state it happens to be in when Googlebot arrives is what gets
- * indexed — and a crawl that landed during a backend outage put the load-error
- * text into the live Google result for jdwal.co, in place of the day's matches.
- *
- * `noindex` on a failed render tells Google to discard that crawl instead of
- * caching it. `follow` is kept so the crawler still walks through to /leagues,
- * /scorers and the league pages, and the next successful crawl re-indexes the
- * page normally — noindex is evaluated per crawl, not remembered.
- *
- * A legitimately empty day (an international break, say) is treated the same
- * way: a fixture list with nothing in it is not a page worth ranking, and it
- * would be a thin-content signal on the site's strongest URL.
+ * A render with no fixtures must not be indexed — see lib/seo.ts for the policy
+ * and why it exists. This is the URL it was written for: the homepage is the
+ * site's most valuable page, and it is the one whose Google result ended up
+ * reading "تعذّر تحميل البيانات".
  */
 export async function generateMetadata(): Promise<Metadata> {
-  if (!hasApiKey()) return { robots: { index: false, follow: true } };
+  if (!hasApiKey()) return { robots: NOINDEX_FOLLOW };
 
   const { today } = await resolveRequestTime();
-  const available = await fixturesAvailable(today);
 
   return {
     alternates: { canonical: "/" },
-    robots: available
-      ? { index: true, follow: true }
-      : { index: false, follow: true },
+    robots: robotsFor(await fixturesAvailable(today)),
   };
 }
 
@@ -84,14 +72,10 @@ export default async function HomePage() {
     const { matches, meta, nowUnix } = await getMatchesByDate(today, today);
     payload = { date: today, matches, meta, nowUnix };
   } catch (error) {
-    if (error instanceof Error && /budget/i.test(error.message)) {
-      return <QuotaNotice />;
-    }
-    return (
-      <LoadErrorNotice
-        message={error instanceof Error ? error.message : String(error)}
-      />
-    );
+    if (classifyFailure(error) === "quota") return <QuotaNotice />;
+    // The detail goes to the server log; the page gets a sanitised message.
+    logFailure("home/matches", error);
+    return <LoadErrorNotice error={error} />;
   }
 
   return (

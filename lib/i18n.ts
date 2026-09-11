@@ -155,6 +155,9 @@ export const t = {
   searchPlayers: "بحث اللاعبين",
   teamsHint: "اختر مسابقة لعرض فرقها",
   leaguesAvailable: "المسابقات المتاحة",
+  /** The pinned list is showing, but the live catalogue could not be reached. */
+  leaguesDegraded:
+    "قائمة مختصرة — تعذّر تحديث بيانات المسابقات من المصدر، أعد المحاولة بعد قليل",
   /** Shown when the league list is capped for performance. */
   leaguesTruncated: (shown: number, total: number) =>
     `تُعرض ${shown} مسابقة من أصل ${total}`,
@@ -165,6 +168,36 @@ export const t = {
     "هذه البيانات موجودة لدى مزود الخدمة لكن مسابقتها غير مشمولة في خطة الاشتراك الحالية. قم بترقية الخطة للوصول إليها.",
   retry: "إعادة المحاولة",
   quotaNotice: "تم الوصول إلى حد الطلبات، تُعرض بيانات محفوظة",
+  // -------------------------------------------------------------------------
+  // Failure messages shown to visitors.
+  //
+  // What a reader needs is what happened, whether it is their fault, and whether
+  // waiting will fix it. None of that requires naming the backend or quoting its
+  // URL — see lib/errors.ts for why those must never appear on the page.
+  // -------------------------------------------------------------------------
+  /** The data service did not respond at all: a fault on our side, and temporary. */
+  errorUnreachable:
+    "خدمة البيانات لا تستجيب حالياً. المشكلة مؤقتة ومن جانبنا — أعد المحاولة بعد قليل.",
+  /** The service responded, but could not produce the data. */
+  errorUpstream:
+    "تعذّر جلب هذه البيانات من مصدرها الآن. حاول مرة أخرى بعد قليل.",
+  errorUnknown: "حدث خطأ غير متوقع أثناء تحميل البيانات. أعد المحاولة بعد قليل.",
+
+  notFoundTitle: "الصفحة غير موجودة",
+  notFoundBody:
+    "الرابط الذي فتحته غير صحيح أو لم يعد متاحاً. يمكنك المتابعة من جدول المباريات.",
+  notFoundHome: "جدول مباريات اليوم",
+
+  matchIndexTitle: "فهرس المباريات",
+  matchIndexIntro: (total: number) =>
+    total > 0
+      ? `${total} مباراة اليوم وغداً، مرتّبة حسب أهمية المسابقة وبمواعيد بتوقيتك ` +
+        `المحلي. اختر أي مباراة لعرض النتيجة المباشرة والأهداف وتفاصيل اللقاء.`
+      : "لا توجد مباريات مجدولة اليوم أو غداً. تظهر المباريات هنا تلقائياً عند إعلان مواعيدها.",
+  /** Mirrors `leaguesTruncated`: the list is capped, and the rest is reachable. */
+  matchIndexTruncated: (shown: number, total: number) =>
+    `تُعرض ${shown} مباراة من أصل ${total} — تصفّح باقي المباريات من صفحة المسابقة`,
+
   quotaTitle: "تم الوصول إلى حد الطلبات اليومي",
   quotaBody:
     "لقد بلغت الخطة الحالية حد الطلبات المسموح. تُعرض البيانات المحفوظة، وستعود التحديثات تلقائياً عند تجدد الحصة.",

@@ -5,6 +5,9 @@ import { ScorersTable } from "@/components/scorers-table";
 import { TableSkeleton } from "@/components/skeleton";
 import { ApiKeyNotice, LoadErrorNotice, QuotaNotice } from "@/components/notices";
 import { getLeagueScorers, getLeagues, hasApiKey } from "@/lib/provider";
+import { classifyFailure, logFailure } from "@/lib/errors";
+import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
+import type { Metadata } from "next";
 import { POPULAR_LEAGUES } from "@/lib/config";
 import { leagueNameAr } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
@@ -12,26 +15,18 @@ import type { LeagueScorers, LeagueSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: t.topScorers,
-  description:
-    "ترتيب الهدافين وصناع الأهداف في الدوريات الكبرى ودوري أبطال أوروبا.",
-  // The `?league=` variants are the same page; point them at the clean URL so
-  // they don't fragment as duplicate content.
-  alternates: { canonical: "/scorers" },
-};
-
 /**
- * Top scorers, browsed by competition.
+ * The tab strip and the selected competition.
  *
- * The picker is the pinned popular leagues (a short, stable list), so the page
- * loads without first fetching the whole league catalogue. The chosen league's
- * leaderboard is then fetched on its own — a single request.
+ * Extracted because `generateMetadata` needs the same answer the page renders. If
+ * each resolved the selection separately they could disagree, and the page would
+ * declare itself indexable for one competition while displaying another. Both
+ * calls share the cached catalogue, so asking twice costs one request.
  */
-export default async function ScorersPage(props: PageProps<"/scorers">) {
-  if (!hasApiKey()) return <ApiKeyNotice />;
-
-  const params = await props.searchParams;
+async function resolveSelection(
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>,
+) {
+  const params = await searchParams;
   const rawLeague = Array.isArray(params.league) ? params.league[0] : params.league;
 
   // The tabs come from the active provider's own league ids so each link
@@ -46,9 +41,10 @@ export default async function ScorersPage(props: PageProps<"/scorers">) {
   }
 
   // Prefer the provider's popular leagues; else synthesize from POPULAR_LEAGUES.
-  const tabs =
-    leagues.filter((l) => l.isPopular).slice(0, 12).length > 0
-      ? leagues.filter((l) => l.isPopular).slice(0, 12)
+  const popular = leagues.filter((l) => l.isPopular).slice(0, 12);
+  const tabs: LeagueSummary[] =
+    popular.length > 0
+      ? popular
       : POPULAR_LEAGUES.map((p) => ({
           id: p.apiFootballId,
           name: p.ar,
@@ -63,8 +59,60 @@ export default async function ScorersPage(props: PageProps<"/scorers">) {
         }));
 
   const requested = Number(rawLeague);
-  const selected =
-    tabs.find((l) => l.id === requested) ?? tabs[0] ?? null;
+  const selected = tabs.find((l) => l.id === requested) ?? tabs[0] ?? null;
+
+  return { tabs, selected };
+}
+
+/**
+ * Indexable only when the selected leaderboard actually has rows — the shared
+ * policy in lib/seo.ts.
+ *
+ * This page is why that policy exists in the first place: a leaderboard that
+ * failed rendered its error inside the page, leaving the tab strip and heading
+ * intact around a load-error box. That reads to a crawler as a real page about
+ * top scorers whose content happens to be an error message, which is the worst
+ * of the possible outcomes.
+ */
+export async function generateMetadata(
+  props: PageProps<"/scorers">,
+): Promise<Metadata> {
+  const base: Metadata = {
+    title: t.topScorers,
+    description:
+      "ترتيب الهدافين وصناع الأهداف في الدوريات الكبرى ودوري أبطال أوروبا.",
+    // The `?league=` variants are the same page; point them at the clean URL so
+    // they don't fragment as duplicate content.
+    alternates: { canonical: "/scorers" },
+  };
+
+  if (!hasApiKey()) return { ...base, robots: NOINDEX_FOLLOW };
+
+  const { selected } = await resolveSelection(props.searchParams);
+  if (!selected) return { ...base, robots: NOINDEX_FOLLOW };
+
+  let hasRows = false;
+  try {
+    const { scorers } = await getLeagueScorers(selected.id);
+    hasRows = scorers.scorers.length > 0;
+  } catch {
+    hasRows = false;
+  }
+
+  return { ...base, robots: robotsFor(hasRows) };
+}
+
+/**
+ * Top scorers, browsed by competition.
+ *
+ * The picker is the pinned popular leagues (a short, stable list), so the page
+ * loads without first fetching the whole league catalogue. The chosen league's
+ * leaderboard is then fetched on its own — a single request.
+ */
+export default async function ScorersPage(props: PageProps<"/scorers">) {
+  if (!hasApiKey()) return <ApiKeyNotice />;
+
+  const { tabs, selected } = await resolveSelection(props.searchParams);
 
   return (
     <>
@@ -134,22 +182,25 @@ async function Leaderboard({ leagueId }: { leagueId: number | null }) {
   // render-time throw from a child be swallowed by this handler instead of
   // reaching an error boundary.
   let scorers = empty;
-  let failure: string | null = null;
+  let failure: unknown = null;
   let quotaExhausted = false;
 
   if (leagueId != null) {
     try {
       ({ scorers } = await getLeagueScorers(leagueId));
     } catch (cause) {
-      if (cause instanceof Error && /budget/i.test(cause.message)) {
+      if (classifyFailure(cause) === "quota") {
         quotaExhausted = true;
       } else {
-        failure = cause instanceof Error ? cause.message : String(cause);
+        // Kept as the thrown value, not its message: `LoadErrorNotice` decides
+        // what a visitor sees, and the detail belongs in the log.
+        failure = cause;
+        logFailure(`scorers/${leagueId}`, cause);
       }
     }
   }
 
   if (quotaExhausted) return <QuotaNotice />;
-  if (failure) return <LoadErrorNotice message={failure} />;
+  if (failure) return <LoadErrorNotice error={failure} />;
   return <ScorersTable data={scorers} />;
 }

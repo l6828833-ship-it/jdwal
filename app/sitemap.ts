@@ -52,6 +52,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // The home fixture list turns over through the day; the rest change as
     // results and leaderboards update, but not by the hour.
     page("/", 1, "daily"),
+    // The match section's only indexable URL: the match pages under it are
+    // noindex by design, so this index is what represents them.
+    page("/match", 0.9, "daily"),
     page("/leagues", 0.8, "weekly"),
     page("/scorers", 0.7, "daily"),
     page("/players", 0.5, "weekly"),
