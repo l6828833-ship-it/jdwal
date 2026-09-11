@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { NavLink } from "@/components/nav-link";
-import { BackHeader } from "@/components/back-header";
 import { Crest } from "@/components/crest";
 import { ApiKeyNotice, EmptyState, LoadErrorNotice, QuotaNotice } from "@/components/notices";
 import { getMatchesByDate, hasApiKey } from "@/lib/provider";
 import { resolveRequestTime } from "@/lib/geo-timezone";
 import { classifyFailure, logFailure } from "@/lib/errors";
-import { MATCH_INDEX_DAY_LIMIT } from "@/lib/config";
 import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
-import { groupByLeague } from "@/lib/grouping";
+import { groupByLeague, isPopularMatch, type LeagueGroup } from "@/lib/grouping";
 import { formatDateLong, formatKickoff, shiftDateKey } from "@/lib/date";
 import { leagueNameAr, t } from "@/lib/i18n";
 import type { Match } from "@/lib/types";
@@ -16,7 +14,7 @@ import type { Match } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 /**
- * `/match` — the match index.
+ * `/match` — today's and tomorrow's fixtures in the major competitions.
  *
  * This URL used to 404. Every match page lives under `/match/<id>`, so `/match`
  * is the parent a visitor edits the address bar down to and the parent a crawler
@@ -31,17 +29,27 @@ export const dynamic = "force-dynamic";
  *
  *   /        the live-score app — one day at a time, a date selector, filters,
  *            search, and polling that keeps scores moving.
- *   /match   a plain index — today AND tomorrow, server-rendered, no JavaScript
+ *   /match   a plain list — today AND tomorrow, server-rendered, no JavaScript
  *            required, kickoff times and links only.
  *
- * The second is worth its own URL because it covers a range the homepage cannot
- * show at once, and because it works as a crawl hub: it is the one page that
- * links to every match page, so a crawler can reach them (they are
- * `noindex,follow`, so following is exactly what they invite).
+ * ── Why only the major competitions ─────────────────────────────────────────
+ *
+ * The first version listed everything the backend returned. A day of worldwide
+ * football is ~550 fixtures, so after the competitions people came for it filled
+ * with Welsh, Lithuanian and Serbian second divisions, U21 sides and reserve
+ * teams — a dozen separate blocks all labelled "الدرجة الاولى", and one whose
+ * name arrived as the bare fragment "ال". As a page that is noise; as the
+ * section's one indexable URL it is worse, because that is what represents the
+ * match section in Google.
+ *
+ * So the list is the pinned POPULAR_LEAGUES — the same editorial set behind the
+ * homepage's "الأهم" filter, maintained in one place in lib/config.ts. Everything
+ * else stays reachable through the homepage and the league pages, which the copy
+ * says and links to.
  */
 const DESCRIPTION =
-  "فهرس مباريات اليوم والغد بمواعيدها بتوقيتك المحلي — كل مباراة مع " +
-  "مسابقتها ورابط تفاصيلها والنتيجة المباشرة.";
+  "مباريات اليوم والغد في أبرز الدوريات والبطولات بمواعيدها بتوقيتك المحلي — " +
+  "النتيجة المباشرة والأهداف وتفاصيل كل مباراة.";
 
 /**
  * Indexable only when it has fixtures — the shared policy in lib/seo.ts. Being
@@ -49,8 +57,9 @@ const DESCRIPTION =
  * page is indexed while empty, the match section is represented in Google by a
  * page with nothing on it.
  *
- * The probe shares the page's own backend request through `getCached`, so asking
- * costs nothing.
+ * The probe counts POPULAR fixtures, because those are what the page renders —
+ * a day with 400 minor-league games and no major ones has nothing to show. It
+ * shares the page's own backend request through `getCached`, so asking is free.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const base: Metadata = {
@@ -64,7 +73,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const { today } = await resolveRequestTime();
   let hasFixtures = false;
   try {
-    hasFixtures = (await getMatchesByDate(today, today)).matches.length > 0;
+    const { matches } = await getMatchesByDate(today, today);
+    hasFixtures = matches.some(isPopularMatch);
   } catch {
     hasFixtures = false;
   }
@@ -72,37 +82,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return { ...base, robots: robotsFor(hasFixtures) };
 }
 
-/** One day's fixtures, or the reason there are none. */
+/** One day, already reduced to what will be rendered. */
 interface DaySlice {
   dateKey: string;
-  matches: Match[];
-  /** Fixtures that day held before the cap, for the "showing N of M" line. */
-  totalAvailable: number;
+  groups: LeagueGroup[];
+  /** Matches in `groups` — the only figure the copy is allowed to quote. */
+  shown: number;
   failed: boolean;
 }
 
-/**
- * Cap a day's fixtures, keeping whole competitions.
- *
- * `groupByLeague` returns groups already ordered by competition popularity, so
- * taking groups from the front keeps the ones people search for. Truncating
- * mid-competition would leave a league showing three of its ten fixtures with
- * nothing saying why, so a group is taken whole or not at all — the first group
- * always is, so a single huge competition can never empty the page.
- */
-function cappedGroups(matches: Match[], limit: number) {
-  const groups = groupByLeague(matches);
-  const kept: ReturnType<typeof groupByLeague> = [];
-  let count = 0;
-
-  for (const group of groups) {
-    if (kept.length > 0 && count + group.matches.length > limit) break;
-    kept.push(group);
-    count += group.matches.length;
-    if (count >= limit) break;
-  }
-
-  return { groups: kept, shown: count };
+function prepareDay(
+  dateKey: string,
+  matches: Match[],
+  failed: boolean,
+): DaySlice {
+  const groups = groupByLeague(matches.filter(isPopularMatch));
+  return {
+    dateKey,
+    groups,
+    shown: groups.reduce((sum, group) => sum + group.matches.length, 0),
+    failed,
+  };
 }
 
 export default async function MatchIndexPage() {
@@ -135,57 +135,68 @@ export default async function MatchIndexPage() {
     logFailure("match-index/tomorrow", tomorrowResult.reason);
   }
 
-  const tomorrowMatches =
-    tomorrowResult.status === "fulfilled" ? tomorrowResult.value.matches : [];
-
-  const days: DaySlice[] = [
-    {
-      dateKey: today,
-      matches: todayResult.value.matches,
-      totalAvailable: todayResult.value.matches.length,
-      failed: false,
-    },
-    {
-      dateKey: tomorrow,
-      matches: tomorrowMatches,
-      totalAvailable: tomorrowMatches.length,
-      failed: tomorrowResult.status === "rejected",
-    },
+  const days = [
+    prepareDay(today, todayResult.value.matches, false),
+    prepareDay(
+      tomorrow,
+      tomorrowResult.status === "fulfilled" ? tomorrowResult.value.matches : [],
+      tomorrowResult.status === "rejected",
+    ),
   ];
+
+  // Counted from the prepared days, so the sentence can never disagree with the
+  // list underneath it.
+  const shownTotal = days.reduce((sum, day) => sum + day.shown, 0);
 
   return (
     <>
-      <BackHeader title={t.matchIndexTitle} />
+      {/**
+       * The same static header /leagues and /scorers use, rather than the
+       * `BackHeader` this page started with. Two reasons: `BackHeader`'s title is
+       * an `<h2>`, which left an indexable page with no `<h1>` at all; and it is a
+       * client component with a `router.back()` button, which contradicts this
+       * page's whole point of needing no JavaScript. A top-level section reached
+       * from the sitemap has nothing to go "back" to anyway.
+       */}
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 px-3 py-4 backdrop-blur-md sm:px-4">
+        <h1 className="text-base font-bold text-foreground">
+          {t.matchIndexTitle}
+        </h1>
+        <p className="mt-0.5 text-xs text-muted">{t.matchIndexSubtitle}</p>
+      </header>
 
       <main className="flex flex-1 flex-col gap-5 px-3 py-4 sm:px-4">
         <p className="text-xs leading-relaxed text-muted">
-          {t.matchIndexIntro(
-            days.reduce((sum, day) => sum + day.totalAvailable, 0),
-          )}
+          {t.matchIndexIntro(shownTotal)}
         </p>
 
         {days.map((day) => (
           <DaySection key={day.dateKey} day={day} timezone={timezone} />
         ))}
+
+        {/* The competitions this page leaves out are one link away. */}
+        <p className="text-xs leading-relaxed text-muted">
+          {t.matchIndexAllHint}{" "}
+          <NavLink href="/" className="font-semibold text-accent hover:underline">
+            {t.matchIndexAllLink}
+          </NavLink>
+        </p>
       </main>
     </>
   );
 }
 
 function DaySection({ day, timezone }: { day: DaySlice; timezone: string }) {
-  const { groups, shown } = cappedGroups(day.matches, MATCH_INDEX_DAY_LIMIT);
-  const hidden = day.totalAvailable - shown;
-
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-sm font-bold text-foreground">
         {formatDateLong(day.dateKey)}
       </h2>
 
-      {groups.length === 0 ? (
-        <EmptyState title={day.failed ? t.loadFailed : t.noMatches} />
+      {day.groups.length === 0 ? (
+        <EmptyState title={day.failed ? t.loadFailed : t.noMatchesTop} />
       ) : (
-        groups.map((group) => (
+        day.groups.map((group) => (
           <div
             key={group.league.id}
             className="overflow-hidden rounded-xl border border-border bg-surface"
@@ -225,12 +236,6 @@ function DaySection({ day, timezone }: { day: DaySlice; timezone: string }) {
             </ul>
           </div>
         ))
-      )}
-
-      {hidden > 0 && (
-        <p className="px-1 text-center text-[0.7rem] text-muted">
-          {t.matchIndexTruncated(shown, day.totalAvailable)}
-        </p>
       )}
     </section>
   );

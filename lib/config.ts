@@ -529,16 +529,5 @@ export const DATE_RANGE_DAYS = 14;
  * provider; only rendering is limited.
  */
 export const LEAGUE_LIST_LIMIT = 120;
-/**
- * How many matches `/match` lists per day.
- *
- * A busy day carries ~550 fixtures worldwide, and two days of them rendered to
- * 1,098 links and 1.4 MB of HTML — a page slow enough to hurt its own ranking,
- * spending most of its link equity on fixtures nobody searches for. Groups
- * arrive sorted by competition popularity, so a cap keeps the competitions people
- * actually look for and drops the tail, with a line saying so and the /leagues
- * route covering the rest.
- */
-export const MATCH_INDEX_DAY_LIMIT = 90;
 /** A horizontally scrolling tab strip stops being usable long before this. */
 export const TEAM_BROWSE_LEAGUE_LIMIT = 40;

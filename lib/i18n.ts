@@ -188,15 +188,31 @@ export const t = {
     "الرابط الذي فتحته غير صحيح أو لم يعد متاحاً. يمكنك المتابعة من جدول المباريات.",
   notFoundHome: "جدول مباريات اليوم",
 
-  matchIndexTitle: "فهرس المباريات",
-  matchIndexIntro: (total: number) =>
-    total > 0
-      ? `${total} مباراة اليوم وغداً، مرتّبة حسب أهمية المسابقة وبمواعيد بتوقيتك ` +
-        `المحلي. اختر أي مباراة لعرض النتيجة المباشرة والأهداف وتفاصيل اللقاء.`
-      : "لا توجد مباريات مجدولة اليوم أو غداً. تظهر المباريات هنا تلقائياً عند إعلان مواعيدها.",
-  /** Mirrors `leaguesTruncated`: the list is capped, and the rest is reachable. */
-  matchIndexTruncated: (shown: number, total: number) =>
-    `تُعرض ${shown} مباراة من أصل ${total} — تصفّح باقي المباريات من صفحة المسابقة`,
+  /**
+   * "مباريات اليوم والغد", not "فهرس المباريات".
+   *
+   * "فهرس" means catalogue — that is how a developer describes the page's ROLE in
+   * the site, not how anyone asks for football. The title now names what the page
+   * holds, in the words people actually search with.
+   */
+  matchIndexTitle: "مباريات اليوم والغد",
+  /**
+   * `shown` is what the page RENDERS, never what the backend returned.
+   *
+   * Those two differ, because the list is limited to the major competitions — and
+   * quoting the backend's figure had the intro announce 1098 matches above a list
+   * of 176.
+   */
+  matchIndexIntro: (shown: number) =>
+    shown > 0
+      ? `${shown} مباراة اليوم وغداً في أبرز الدوريات والبطولات — الدوريات ` +
+        `الأوروبية الكبرى ودوري أبطال أوروبا والدوريات العربية — بمواعيدها ` +
+        `بتوقيتك المحلي. اختر أي مباراة لعرض النتيجة المباشرة والأهداف والتفاصيل.`
+      : "لا توجد مباريات في المسابقات الكبرى اليوم أو غداً. تظهر المباريات هنا تلقائياً عند إعلان مواعيدها.",
+  /** Where to find the competitions this page deliberately leaves out. */
+  matchIndexAllHint: "لعرض مباريات كل المسابقات، بما فيها الدوريات الأصغر والفئات السنية:",
+  matchIndexAllLink: "جدول المباريات الكامل",
+  matchIndexSubtitle: "أبرز الدوريات والبطولات",
 
   quotaTitle: "تم الوصول إلى حد الطلبات اليومي",
   quotaBody:
