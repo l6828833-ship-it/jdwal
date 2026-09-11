@@ -52,9 +52,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // The home fixture list turns over through the day; the rest change as
     // results and leaderboards update, but not by the hour.
     page("/", 1, "daily"),
-    // The match section's only indexable URL: the match pages under it are
-    // noindex by design, so this index is what represents them.
-    page("/match", 0.9, "daily"),
+    // `/match` is deliberately absent: it permanently redirects to `/` (see
+    // next.config.ts). A sitemap should list only indexable canonical URLs, and
+    // a redirecting entry is a quality signal Google reports against the site.
     page("/leagues", 0.8, "weekly"),
     page("/scorers", 0.7, "daily"),
     page("/players", 0.5, "weekly"),

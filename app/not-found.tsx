@@ -55,11 +55,14 @@ export default function NotFound() {
           >
             {t.notFoundHome}
           </NavLink>
+          {/* Not `/match`: that path redirects to `/`, which the first link
+              already covers. Pointing here would send a visitor through a
+              needless hop to a page they were already offered. */}
           <NavLink
-            href="/match"
+            href="/scorers"
             className="rounded-full bg-surface-hover px-4 py-2 text-sm font-semibold text-muted transition-colors hover:text-foreground"
           >
-            {t.allMatches}
+            {t.navScorers}
           </NavLink>
           <NavLink
             href="/leagues"

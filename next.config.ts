@@ -1,6 +1,29 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /**
+   * `/match` -> `/`.
+   *
+   * Match pages live at `/match/<id>`, so `/match` is the parent a visitor edits
+   * the address bar down to and the parent a crawler infers from any match link.
+   * It used to 404 with Next's default English page.
+   *
+   * A redirect rather than a page, because the content it would hold is already
+   * the homepage: any fixture list here duplicates `/` and the two compete for
+   * the same query, with this one the weaker of the pair (no live clock, no date
+   * selector, no filters). It is also better than simply deleting the route,
+   * which would bring the 404 back, and better than a `noindex` page, because a
+   * permanent redirect CONSOLIDATES this URL's links and authority into `/`
+   * instead of discarding them.
+   *
+   * `permanent: true` emits 308. Google treats it exactly like a 301 for
+   * indexing and consolidation, and it additionally preserves the HTTP method.
+   *
+   * The `source` is the exact path — `/match/<id>` is untouched.
+   */
+  async redirects() {
+    return [{ source: "/match", destination: "/", permanent: true }];
+  },
   images: {
     // League crests and team logos are served from footballdata.io.
     remotePatterns: [
