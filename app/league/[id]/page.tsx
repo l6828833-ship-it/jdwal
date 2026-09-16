@@ -20,11 +20,11 @@ import {
   supportsHistoricalSeasons,
 } from "@/lib/provider";
 import { countryNameAr } from "@/lib/countries";
-import { isPinnedLeague } from "@/lib/config";
+import { isPinnedLeague, leagueHref, leagueIdFromSlug } from "@/lib/config";
 import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
 import { ensureTrueTime, nowDate, nowUnix as trueNowUnix } from "@/lib/true-time";
-import { t } from "@/lib/i18n";
-import type { Match } from "@/lib/types";
+import { leagueNameAr, t } from "@/lib/i18n";
+import type { LeagueRef, Match } from "@/lib/types";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -65,30 +65,71 @@ function seasonOptions(current: number): number[] {
  * lib/seo.ts. Unpinned pages stay `follow`, so they remain reachable and their
  * links still count — they simply do not enter the index.
  */
+/**
+ * The `[id]` segment is a slug for curated competitions and a number for the
+ * rest, so it is resolved before anything else uses it.
+ *
+ * Both forms are accepted by the route even though only one is ever linked: the
+ * numeric form redirects to the slug at the edge (next.config.ts), and this is
+ * what the slug then resolves against. Accepting both also means a bookmark or an
+ * external link in either shape still reaches the page.
+ */
+function resolveLeagueId(param: string): number | null {
+  const fromSlug = leagueIdFromSlug(param);
+  if (fromSlug != null) return fromSlug;
+  const numeric = Number(param);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
 export async function generateMetadata(
   props: PageProps<"/league/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
-  const leagueId = Number(id);
-  if (!hasApiKey() || !Number.isInteger(leagueId)) {
-    return { title: t.appName, robots: NOINDEX_FOLLOW };
+  const leagueId = resolveLeagueId(id);
+  if (!hasApiKey() || leagueId == null) {
+    // An unresolvable segment renders the 404 page, so the title says so rather
+    // than reading "جدول" — and it claims no canonical, since there is no page
+    // here to be canonical for.
+    return {
+      title: t.notFoundTitle,
+      robots: NOINDEX_FOLLOW,
+      alternates: { canonical: null },
+    };
   }
 
   const pinned = isPinnedLeague(leagueId);
+  /**
+   * A curated competition knows its own name without asking the backend.
+   *
+   * The standings call is the only source of a name here, and it comes back empty
+   * for a competition that is between seasons or still in qualifying — so the
+   * title fell back to the generic label "جدول الترتيب". The CAF Champions League
+   * was titled that in September, which is both wrong and identical to every
+   * other league page in the same state.
+   */
+  const pinnedName = pinned ? leagueNameAr(leagueId, "") : null;
 
   try {
     const result = await getLeagueStandings(leagueId);
-    const name = result?.standings.league?.name;
+    const name = result?.standings.league?.name || pinnedName;
     return {
       title: name ?? t.standings,
       description: name
         ? `${name} — جدول المباريات والترتيب والهدافين، ونتائج مباشرة.`
         : undefined,
-      alternates: { canonical: `/league/${leagueId}` },
+      // The slug form, always — the numeric URL redirects here, so declaring it
+      // as canonical would point at a redirect.
+      alternates: { canonical: leagueHref(leagueId) },
+      // Indexable on the NAME being known, not on the table existing: a cup in
+      // its qualifying rounds is a real page with real fixtures, and it should
+      // not drop out of the index for the months before its group stage.
       robots: pinned ? robotsFor(Boolean(name)) : NOINDEX_FOLLOW,
     };
   } catch {
-    return { title: t.standings, robots: NOINDEX_FOLLOW };
+    return {
+      title: pinnedName ?? t.standings,
+      robots: pinned ? robotsFor(Boolean(pinnedName)) : NOINDEX_FOLLOW,
+    };
   }
 }
 
@@ -96,8 +137,8 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
   if (!hasApiKey()) return <ApiKeyNotice />;
 
   const { id } = await props.params;
-  const leagueId = Number(id);
-  if (!Number.isInteger(leagueId) || leagueId <= 0) notFound();
+  const leagueId = resolveLeagueId(id);
+  if (leagueId == null) notFound();
 
   /**
    * Fallback "now" for when the fixtures call fails and carries no timestamp of
@@ -160,7 +201,39 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
         result.standings.league?.nameOriginal ?? "",
       ));
 
-  const league = result?.standings.league ?? null;
+  /**
+   * Who this page is about, in order of how well each source knows.
+   *
+   * The standings payload was the only source, and when it is empty — a cup
+   * between seasons, or one still in its qualifying rounds — `league` was null and
+   * everything downstream fell back to the generic label "جدول الترتيب". That is
+   * how /league/12 rendered in September: titled "جدول الترتيب", with a crest
+   * showing the initials "جد" because `Crest` derives initials from the name it is
+   * given, and no country or flag. The page had real CAF fixtures on it the whole
+   * time and still could not say which competition it was — which is also why the
+   * name here did not match the one /leagues links to.
+   *
+   * The fixtures payload carries the same `LeagueRef` (id, Arabic name, crest,
+   * country), so it answers whenever there are fixtures. Failing that, a pinned
+   * competition's name is a local constant and needs no backend at all.
+   */
+  const fixturesLeague = fixtures.matches[0]?.league ?? null;
+  const pinnedName = isPinnedLeague(leagueId) ? leagueNameAr(leagueId, "") : null;
+
+  const league: LeagueRef | null =
+    result?.standings.league ??
+    fixturesLeague ??
+    (pinnedName
+      ? {
+          id: leagueId,
+          name: pinnedName,
+          nameOriginal: pinnedName,
+          country: null,
+          countryCode: null,
+          logo: null,
+        }
+      : null);
+
   const rows = result?.standings.rows ?? [];
   const seasonYear = result?.standings.seasonYear ?? selectedSeason;
   const title = league?.name ?? t.standings;
