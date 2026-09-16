@@ -143,6 +143,39 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     apiFootballId: 848,
     aliases: ["uefa europa conference league", "uefa conference league"],
   },
+
+  // --- 1b. Asian and African club cups -------------------------------------
+  //
+  // Placed with the other continental club cups rather than below the European
+  // leagues, which is both consistent with the ordering this file already
+  // documents (cups first, then leagues) and right for the audience: these are
+  // the competitions Saudi, Emirati, Qatari, Egyptian, Moroccan and Tunisian
+  // clubs play in, so for an Arabic-language site they outrank a foreign
+  // domestic league. They were absent entirely, which left them with no Arabic
+  // name, no rank, and no place in the tabs or the sitemap.
+  {
+    key: "afc-champions-league",
+    ar: "دوري أبطال آسيا",
+    ids: [17],
+    highlightlyId: 0,
+    apiFootballId: 17,
+    // The competition was renamed "AFC Champions League Elite" in 2024; both
+    // spellings are matched so a rename upstream cannot unpin it. The alias is
+    // only a fallback anyway — the id is what normally resolves it.
+    aliases: [
+      "afc champions league elite",
+      "afc champions league",
+      "asian champions league",
+    ],
+  },
+  {
+    key: "caf-champions-league",
+    ar: "دوري أبطال أفريقيا",
+    ids: [12],
+    highlightlyId: 0,
+    apiFootballId: 12,
+    aliases: ["caf champions league", "african champions league"],
+  },
   {
     key: "premier-league",
     ar: "الدوري الإنجليزي الممتاز",
@@ -390,6 +423,24 @@ export function matchesLeagueId(entry: PopularLeague, leagueId: number): boolean
     default:
       return entry.ids.includes(leagueId);
   }
+}
+
+/**
+ * Is this one of the competitions this site actually curates?
+ *
+ * The backend serves ~800 competitions and mints a stable derived id (800000+)
+ * for every one it does not have a real mapping for, so `/league/<id>` answers
+ * for all of them. That turned into 127 indexed pages — `/league/829457`,
+ * `/league/880444`, `/league/838570` and so on: third divisions, reserve and
+ * youth sides, most named just "الدرجة الاولى" with no country to tell them
+ * apart. Thin, near-identical pages in that volume are a quality problem for the
+ * whole domain, not just dead weight.
+ *
+ * The pinned list is the answer to "which league pages are worth indexing", and
+ * it is the same list the sitemap is built from, so the two cannot drift.
+ */
+export function isPinnedLeague(leagueId: number): boolean {
+  return POPULAR_LEAGUES.some((entry) => matchesLeagueId(entry, leagueId));
 }
 
 export function leaguePopularity(

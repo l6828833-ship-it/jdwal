@@ -20,6 +20,8 @@ import {
   supportsHistoricalSeasons,
 } from "@/lib/provider";
 import { countryNameAr } from "@/lib/countries";
+import { isPinnedLeague } from "@/lib/config";
+import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
 import { ensureTrueTime, nowDate, nowUnix as trueNowUnix } from "@/lib/true-time";
 import { t } from "@/lib/i18n";
 import type { Match } from "@/lib/types";
@@ -47,12 +49,32 @@ function seasonOptions(current: number): number[] {
   return [0, 1, 2, 3, 4].map((back) => current - back);
 }
 
+/**
+ * Only the CURATED competitions are indexable.
+ *
+ * The backend answers `/league/<id>` for every competition it tracks — roughly
+ * 800, most of them behind a derived id in the 800000+ range — and with no
+ * `robots` here every one of them inherited the layout's `index, follow`. The
+ * result was 127 indexed league pages, nearly all third divisions, reserve teams
+ * and youth sides that the data source names identically ("الدرجة الاولى", with
+ * no country), against 20 that anyone searches for. That volume of thin,
+ * near-duplicate pages is a site-wide quality signal, and it was competing for
+ * crawl budget with the pages that carry real value.
+ *
+ * A page still needs its data to be indexed even when pinned, per the policy in
+ * lib/seo.ts. Unpinned pages stay `follow`, so they remain reachable and their
+ * links still count — they simply do not enter the index.
+ */
 export async function generateMetadata(
   props: PageProps<"/league/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
   const leagueId = Number(id);
-  if (!hasApiKey() || !Number.isInteger(leagueId)) return { title: t.appName };
+  if (!hasApiKey() || !Number.isInteger(leagueId)) {
+    return { title: t.appName, robots: NOINDEX_FOLLOW };
+  }
+
+  const pinned = isPinnedLeague(leagueId);
 
   try {
     const result = await getLeagueStandings(leagueId);
@@ -63,9 +85,10 @@ export async function generateMetadata(
         ? `${name} — جدول المباريات والترتيب والهدافين، ونتائج مباشرة.`
         : undefined,
       alternates: { canonical: `/league/${leagueId}` },
+      robots: pinned ? robotsFor(Boolean(name)) : NOINDEX_FOLLOW,
     };
   } catch {
-    return { title: t.standings };
+    return { title: t.standings, robots: NOINDEX_FOLLOW };
   }
 }
 
