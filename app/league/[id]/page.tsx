@@ -220,7 +220,7 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
   const fixturesLeague = fixtures.matches[0]?.league ?? null;
   const pinnedName = isPinnedLeague(leagueId) ? leagueNameAr(leagueId, "") : null;
 
-  const league: LeagueRef | null =
+  const resolved: LeagueRef | null =
     result?.standings.league ??
     fixturesLeague ??
     (pinnedName
@@ -233,6 +233,19 @@ export default async function LeaguePage(props: PageProps<"/league/[id]">) {
           logo: null,
         }
       : null);
+
+  /**
+   * A curated competition uses its EDITORIAL name, whatever the payload says.
+   *
+   * The source appends the current phase to a competition's display name, and on
+   * some it stacks several: the FA Cup arrived as "كأس الاتحاد الإنجليزي -
+   * الجولات التمهيدية - دور التصفيات الأول - أبطال أوروبا". That is unusable as a
+   * heading, and it disagreed with the `<title>`, which already preferred the
+   * pinned name. Only the NAME is overridden — the crest and country still come
+   * from whichever payload supplied them.
+   */
+  const league: LeagueRef | null =
+    resolved && pinnedName ? { ...resolved, name: pinnedName } : resolved;
 
   const rows = result?.standings.rows ?? [];
   const seasonYear = result?.standings.seasonYear ?? selectedSeason;

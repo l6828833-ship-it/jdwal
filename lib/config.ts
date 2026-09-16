@@ -354,6 +354,169 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     apiFootballId: 253,
     aliases: ["major league soccer"],
   },
+
+  // --- 5. Domestic cups ----------------------------------------------------
+  //
+  // These were missing entirely, which is why a Carabao Cup third round with
+  // Manchester United, Liverpool, Arsenal and Chelsea all playing did not appear
+  // under "الأهم" — the competition simply was not curated, so every tie in it
+  // ranked below any pinned league.
+  //
+  // Appended rather than interleaved, deliberately. Position in this array is the
+  // ranking, and it drives three things at once: the home page grouping, the
+  // sitemap priority, and the scorers tab strip — which shows the top TWELVE
+  // pinned competitions. Slotting cups among the leagues would have pushed real
+  // leaderboards out of that strip in favour of cups that mostly have none. Here
+  // they are curated and "important" without displacing anything.
+  //
+  // Leagues before cups within the block, and each country's cup next to its
+  // league's region, so the order still reads as an editorial list.
+  {
+    key: "fa-cup",
+    slug: "fa-cup",
+    ar: "كأس الاتحاد الإنجليزي",
+    ids: [45],
+    highlightlyId: 0,
+    apiFootballId: 45,
+    aliases: ["fa cup"],
+  },
+  {
+    key: "efl-cup",
+    slug: "carabao-cup",
+    ar: "كأس الكاراباو",
+    ids: [48],
+    highlightlyId: 0,
+    // Renamed repeatedly by sponsor (League Cup, Capital One, Carabao), so the
+    // aliases cover the lot — though the id is what normally resolves it.
+    aliases: ["carabao cup", "efl cup", "league cup"],
+    apiFootballId: 48,
+  },
+  {
+    key: "copa-del-rey",
+    slug: "copa-del-rey",
+    ar: "كأس ملك إسبانيا",
+    ids: [143],
+    highlightlyId: 0,
+    apiFootballId: 143,
+    aliases: ["copa del rey"],
+  },
+  {
+    key: "coppa-italia",
+    slug: "coppa-italia",
+    ar: "كأس إيطاليا",
+    ids: [137],
+    highlightlyId: 0,
+    apiFootballId: 137,
+    aliases: ["coppa italia"],
+  },
+  {
+    key: "dfb-pokal",
+    slug: "dfb-pokal",
+    ar: "كأس ألمانيا",
+    ids: [81],
+    highlightlyId: 0,
+    apiFootballId: 81,
+    aliases: ["dfb pokal", "dfb-pokal"],
+  },
+  {
+    key: "coupe-de-france",
+    slug: "coupe-de-france",
+    ar: "كأس فرنسا",
+    ids: [66],
+    highlightlyId: 0,
+    apiFootballId: 66,
+    aliases: ["coupe de france"],
+  },
+  /**
+   * Arab domestic cups.
+   *
+   * On locally assigned ids in the 900000+ range, because API-Football publishes
+   * its id list only inside its dashboard and guessing from a league's
+   * neighbouring number silently maps a cup onto an unrelated competition. The
+   * backend assigns them and documents the range — see `TO_API_FOOTBALL` in
+   * utils/scores365/leagues.js. Nothing else in this file uses that range.
+   */
+  {
+    key: "saudi-king-cup",
+    slug: "saudi-king-cup",
+    ar: "كأس الملك السعودي",
+    ids: [900001],
+    highlightlyId: 0,
+    apiFootballId: 900001,
+    aliases: ["king cup", "saudi king cup"],
+  },
+  {
+    key: "egypt-cup",
+    slug: "egypt-cup",
+    ar: "كأس مصر",
+    ids: [900002],
+    highlightlyId: 0,
+    apiFootballId: 900002,
+    aliases: ["egypt cup", "egyptian cup"],
+  },
+  {
+    key: "morocco-throne-cup",
+    slug: "throne-cup",
+    ar: "كأس العرش المغربي",
+    ids: [900003],
+    highlightlyId: 0,
+    apiFootballId: 900003,
+    aliases: ["throne cup", "coupe du trone"],
+  },
+  {
+    key: "uae-president-cup",
+    slug: "uae-presidents-cup",
+    ar: "كأس رئيس الدولة الإماراتي",
+    ids: [900004],
+    highlightlyId: 0,
+    apiFootballId: 900004,
+    aliases: ["president cup", "presidents cup"],
+  },
+  {
+    key: "qatar-emir-cup",
+    slug: "qatar-emir-cup",
+    ar: "كأس أمير قطر",
+    ids: [900005],
+    highlightlyId: 0,
+    apiFootballId: 900005,
+    aliases: ["emir cup"],
+  },
+  {
+    key: "tunisia-cup",
+    slug: "tunisia-cup",
+    ar: "كأس تونس",
+    ids: [900006],
+    highlightlyId: 0,
+    apiFootballId: 900006,
+    aliases: ["coupe de tunisie", "tunisia cup"],
+  },
+  {
+    key: "algeria-cup",
+    slug: "algeria-cup",
+    ar: "كأس الجزائر",
+    ids: [900007],
+    highlightlyId: 0,
+    apiFootballId: 900007,
+    aliases: ["coupe d'algerie", "algeria cup"],
+  },
+  {
+    key: "jordan-cup",
+    slug: "jordan-cup",
+    ar: "كأس الأردن",
+    ids: [900008],
+    highlightlyId: 0,
+    apiFootballId: 900008,
+    aliases: ["jordan cup"],
+  },
+  {
+    key: "iraq-cup",
+    slug: "iraq-cup",
+    ar: "كأس العراق",
+    ids: [900009],
+    highlightlyId: 0,
+    apiFootballId: 900009,
+    aliases: ["iraq cup"],
+  },
 ];
 
 function normalize(value: string): string {
@@ -427,6 +590,33 @@ const YOUTH_OR_SECONDARY = new RegExp(
     "\\bfutsal\\b",
     "\\bbeach\\b",
     "\\besports\\b",
+    /**
+     * The same exclusions in Arabic.
+     *
+     * Every one above is an English word, and the active data source is asked for
+     * Arabic — so none of them ever fired. That left alias matching free to hand a
+     * women's or youth edition its senior competition's rank purely because the
+     * senior name is a substring of it: "كأس مصر للسيدات" contains "كأس مصر".
+     * Observed live, where a French women's league and an English U21 league were
+     * ranked among the pinned competitions.
+     *
+     * No word boundaries: `\b` is defined on ASCII word characters and does not
+     * behave meaningfully against Arabic script.
+     */
+    "للسيدات", //   women's
+    "سيدات",
+    "نساء",
+    "للشباب", //    youth
+    "شباب",
+    "الناشئين", //  juniors
+    "ناشئين",
+    "أواسط", //     intermediate age group
+    "رديف", //      reserves
+    "الرصيف",
+    "تحت\\s*\\d{2}", // تحت 21 / تحت 17
+    "أولمبي", //    olympic (a different, age-limited team)
+    "الصالات", //   futsal
+    "الشاطئية", //  beach
   ].join("|"),
   "i",
 );

@@ -564,6 +564,24 @@ function parseGameWeek(round: string | null | undefined): number | null {
    * and the bracket rendered nothing at all.
    */
   if (isKnockoutRound(round)) return null;
+  /**
+   * A cup's numbered ROUND is not a matchday either.
+   *
+   * The early rounds of a cup are named "الدور 3" — single-elimination ties, not
+   * the third week of a season. They do not map onto the last-16 ladder above, so
+   * `isKnockoutRound` rightly ignores them, but reading the 3 as a game week made
+   * `stageAr` relabel them "الجولة 3" and call a Carabao Cup tie a matchday.
+   *
+   * Only the Arabic form is rejected, and that is not an oversight: the source
+   * names a cup round in its own language ("الدور 3") while a league MATCHDAY has
+   * no name at all and is synthesized here as "Round 12" from the round number.
+   * Rejecting the English form too would have left every league fixture showing a
+   * raw "Round 12" instead of "الجولة 12". Verified against both: the Carabao Cup
+   * sends "الدور 3", the Premier League "Round 3".
+   */
+  // No `\b`: JavaScript word boundaries are defined on ASCII word characters, so
+  // one placed after Arabic script never matches. `\s|$` is the boundary here.
+  if (/^\s*(ال)?دور(\s|$)/i.test(round)) return null;
   const match = /(\d+)\s*$/.exec(round.trim());
   return match ? Number(match[1]) : null;
 }
