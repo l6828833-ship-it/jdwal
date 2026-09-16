@@ -61,6 +61,8 @@ import type {
   LeagueSummary,
   Match,
   MatchDetail,
+  MatchEvent,
+  MatchEventKind,
   MatchGoal,
   MatchStats,
   MatchStatus,
@@ -694,6 +696,71 @@ function extractGoals(raw: RawFixture): MatchGoal[] | undefined {
     });
 }
 
+/**
+ * Every incident in the match, chronologically — goals, cards, missed penalties
+ * and goals ruled out.
+ *
+ * Classified from the backend's `type`/`detail` pair, which follows
+ * API-Football's vocabulary and is emitted in English regardless of the language
+ * the underlying data arrives in. That matters: the source's own event names are
+ * localized, and matching those directly is what previously discarded every goal
+ * on the site. The backend now does the id-based classification and hands over
+ * stable English labels, so this only has to read them.
+ */
+function extractEvents(raw: RawFixture): MatchEvent[] | undefined {
+  if (!Array.isArray(raw.events)) return undefined;
+
+  const homeId = raw.teams?.home?.id;
+
+  const kindOf = (
+    type: string,
+    detail: string,
+  ): MatchEventKind | null => {
+    if (type === "goal") {
+      if (detail.includes("missed")) return "missedPenalty";
+      if (detail.includes("own")) return "own";
+      if (detail.includes("penalty")) return "penalty";
+      return "goal";
+    }
+    if (type === "card") {
+      if (detail.includes("second")) return "secondYellow";
+      if (detail.includes("red")) return "red";
+      if (detail.includes("yellow")) return "yellow";
+      return null;
+    }
+    if (type.includes("missed")) return "missedPenalty";
+    // "Var" covers several outcomes; only a disallowed goal is worth a row, and
+    // anything else it reports (a penalty confirmed, a card upgraded) is already
+    // represented by the event it changed.
+    if (type === "var") return detail.includes("disallow") ? "disallowed" : null;
+    return null;
+  };
+
+  const events: MatchEvent[] = [];
+  for (const event of raw.events) {
+    const kind = kindOf(
+      (event.type ?? "").toLowerCase(),
+      (event.detail ?? "").toLowerCase(),
+    );
+    if (!kind) continue;
+
+    const elapsed = num(event.time?.elapsed) ?? 0;
+    const extra = num(event.time?.extra);
+    events.push({
+      minute: extra ? `${elapsed}+${extra}` : String(elapsed),
+      // Shown as the provider spells it: no club-name translation is ever
+      // applied to a person's name.
+      player: event.player?.name?.trim() || "—",
+      assist: kind === "goal" || kind === "penalty" || kind === "own"
+        ? event.assist?.name?.trim() || null
+        : null,
+      team: event.team?.id === homeId ? "home" : "away",
+      kind,
+    });
+  }
+  return events;
+}
+
 /** "54%" -> 54, 12 -> 12, null -> null. */
 function parseStatValue(value: number | string | null | undefined): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -1002,6 +1069,7 @@ export async function getMatchDetail(
       ...normalizeMatch(merged),
       stats: extractStats(merged),
       goals: extractGoals(merged),
+      events: extractEvents(merged),
     },
     nowUnix: trueNowUnix(),
     meta: meta(

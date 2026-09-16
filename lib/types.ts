@@ -162,6 +162,36 @@ export interface MatchGoal {
   kind: "goal" | "own" | "penalty";
 }
 
+/**
+ * Everything that happened in a match that is worth a row.
+ *
+ * A superset of `MatchGoal`: the goal kinds are carried through unchanged so a
+ * goal is still a goal, with cards and the other incidents alongside them.
+ * Substitutions are deliberately absent — around ten a match, and they would bury
+ * the incidents among routine changes.
+ */
+export type MatchEventKind =
+  | "goal"
+  | "own"
+  | "penalty"
+  | "yellow"
+  | "red"
+  /** A red card for a second bookable offence, worth distinguishing. */
+  | "secondYellow"
+  | "missedPenalty"
+  /** A goal ruled out, usually by VAR. */
+  | "disallowed";
+
+export interface MatchEvent {
+  /** Minute as the provider renders it, e.g. "23" or "90+2". */
+  minute: string;
+  player: string;
+  /** Only ever set on a goal. */
+  assist: string | null;
+  team: "home" | "away";
+  kind: MatchEventKind;
+}
+
 export interface MatchDetail extends Match {
   stats: MatchStats | null;
   /**
@@ -172,6 +202,14 @@ export interface MatchDetail extends Match {
    * difference to avoid captioning an empty list as "no goals".
    */
   goals?: MatchGoal[];
+  /**
+   * Goals AND the rest of the match's incidents, chronologically.
+   *
+   * Same `undefined` vs `[]` distinction as `goals`. `goals` is kept because it
+   * is the narrower contract every provider can meet; this is populated only by
+   * backends with a full event feed.
+   */
+  events?: MatchEvent[];
 }
 
 /**

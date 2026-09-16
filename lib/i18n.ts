@@ -85,6 +85,14 @@ export const t = {
   assist: "صناعة",
   ownGoal: "هدف عكسي",
   penalty: "ركلة جزاء",
+
+  /** Heading for the match timeline: goals AND the rest of the incidents. */
+  matchEvents: "أحداث المباراة",
+  eventYellow: "بطاقة صفراء",
+  eventRed: "بطاقة حمراء",
+  eventSecondYellow: "طرد بعد بطاقتين",
+  eventMissedPenalty: "ركلة جزاء مهدرة",
+  eventDisallowed: "هدف ملغى",
   possession: "الاستحواذ",
   shotsTotal: "التسديدات",
   shotsOnTarget: "تسديدات على الهدف",

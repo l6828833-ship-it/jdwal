@@ -14,7 +14,12 @@ import { leagueHref, LIVE_POLL_SECONDS } from "@/lib/config";
 import { formatDateLong, formatKickoff, toDateKey } from "@/lib/date";
 import { BROADCAST_REGION } from "@/lib/broadcast";
 import { t } from "@/lib/i18n";
-import type { MatchDetail } from "@/lib/types";
+import type {
+  MatchDetail,
+  MatchEvent,
+  MatchEventKind,
+  MatchGoal,
+} from "@/lib/types";
 
 interface MatchDetailViewProps {
   initialMatch: MatchDetail;
@@ -213,43 +218,18 @@ export function MatchDetailView({
       </section>
 
       <main className="flex flex-1 flex-col gap-3 px-3 py-3 sm:px-4">
-        {match.goals && match.goals.length > 0 && (
-          <section className="overflow-hidden rounded-xl border border-border bg-surface">
-            <h2 className="border-b border-divider px-4 py-2.5 text-sm font-semibold text-foreground">
-              {t.goals}
-            </h2>
-            <ul>
-              {match.goals.map((goal, i) => (
-                <li
-                  key={`${goal.minute}-${goal.player}-${i}`}
-                  className={`flex items-center gap-2 border-b border-divider px-4 py-2 last:border-b-0 ${
-                    goal.team === "away" ? "flex-row-reverse text-end" : ""
-                  }`}
-                >
-                  <span className="min-w-[2.5rem] shrink-0 text-xs font-bold text-accent tnum">
-                    {goal.minute}&apos;
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {goal.kind === "own" ? "🥅" : "⚽"} {goal.player}
-                      {goal.kind === "own" && (
-                        <span className="text-muted"> ({t.ownGoal})</span>
-                      )}
-                      {goal.kind === "penalty" && (
-                        <span className="text-muted"> ({t.penalty})</span>
-                      )}
-                    </span>
-                    {goal.assist && (
-                      <span className="truncate text-[0.7rem] text-muted">
-                        {t.assist}: {goal.assist}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {/**
+         * One timeline for everything that happened, not a goals-only list.
+         *
+         * `events` carries the goals plus cards, missed penalties and goals ruled
+         * out; `goals` is the fallback for a backend that only exposes scorers, so
+         * a provider without a full event feed still shows what it has.
+         */}
+        <MatchTimeline
+          events={match.events ?? goalsAsEvents(match.goals)}
+          homeName={match.home.name}
+          awayName={match.away.name}
+        />
 
         {hasStats && (
           <div role="tablist" className="flex items-center gap-1">
@@ -418,3 +398,99 @@ function TabButton({
 }
 
 
+
+/**
+ * How each incident is drawn: its marker, its label, and whether the label is
+ * worth showing at all.
+ *
+ * A plain goal needs no label — the ball says it. Everything else does, because
+ * "a name at minute 34" is meaningless without knowing what happened to them.
+ * Cards are drawn as coloured blocks rather than emoji: 🟨/🟥 render
+ * inconsistently across platforms and are invisible against a dark background on
+ * some of them.
+ */
+const EVENT_STYLE: Record<
+  MatchEventKind,
+  { label: string | null; card?: "yellow" | "red"; icon?: string }
+> = {
+  goal: { label: null, icon: "⚽" },
+  penalty: { label: t.penalty, icon: "⚽" },
+  own: { label: t.ownGoal, icon: "🥅" },
+  yellow: { label: t.eventYellow, card: "yellow" },
+  red: { label: t.eventRed, card: "red" },
+  secondYellow: { label: t.eventSecondYellow, card: "red" },
+  missedPenalty: { label: t.eventMissedPenalty, icon: "✖" },
+  disallowed: { label: t.eventDisallowed, icon: "⃠" },
+};
+
+/** A goals-only feed, widened so one renderer covers both shapes. */
+function goalsAsEvents(goals: MatchGoal[] | undefined): MatchEvent[] | undefined {
+  return goals?.map((goal) => ({ ...goal, kind: goal.kind as MatchEventKind }));
+}
+
+function MatchTimeline({
+  events,
+  homeName,
+  awayName,
+}: {
+  events: MatchEvent[] | undefined;
+  homeName: string;
+  awayName: string;
+}) {
+  // `undefined` means the provider has no event feed; `[]` means a match where
+  // nothing happened. Neither deserves an empty box.
+  if (!events || events.length === 0) return null;
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-surface">
+      <h2 className="border-b border-divider px-4 py-2.5 text-sm font-semibold text-foreground">
+        {t.matchEvents}
+      </h2>
+      <ul>
+        {events.map((event, i) => {
+          const style = EVENT_STYLE[event.kind];
+          const away = event.team === "away";
+          return (
+            <li
+              key={`${event.minute}-${event.player}-${event.kind}-${i}`}
+              className={`flex items-center gap-2 border-b border-divider px-4 py-2 last:border-b-0 ${
+                away ? "flex-row-reverse text-end" : ""
+              }`}
+            >
+              <span className="min-w-[2.5rem] shrink-0 text-xs font-bold text-accent tnum">
+                {event.minute}&apos;
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
+                  {style.card ? (
+                    <span
+                      /* The card's meaning is in `aria-label`, not the colour,
+                         so it is announced and not merely seen. */
+                      aria-label={style.label ?? undefined}
+                      className={`inline-block h-3.5 w-2.5 shrink-0 rounded-[2px] ${
+                        style.card === "yellow" ? "bg-amber-400" : "bg-red-500"
+                      }`}
+                    />
+                  ) : (
+                    <span aria-hidden="true">{style.icon}</span>
+                  )}
+                  <span className="truncate">{event.player}</span>
+                </span>
+                {(style.label || event.assist) && (
+                  <span className="truncate text-[0.7rem] text-muted">
+                    {/* The team is named on every row: with two columns of
+                        right- and left-aligned text, alignment alone is a weak
+                        signal on a narrow screen. */}
+                    {away ? awayName : homeName}
+                    {style.label ? ` · ${style.label}` : ""}
+                    {event.assist ? ` · ${t.assist}: ${event.assist}` : ""}
+                  </span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
