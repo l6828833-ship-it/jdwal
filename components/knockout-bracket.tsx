@@ -1,4 +1,5 @@
 import { Crest } from "./crest";
+import { classifyRound } from "@/lib/rounds";
 import { t } from "@/lib/i18n";
 import type { Match } from "@/lib/types";
 
@@ -19,32 +20,6 @@ interface KnockoutBracketProps {
  * knockout round, the whole bracket renders nothing and the caller falls back
  * to the plain match list.
  */
-
-/** Canonical round order, earliest first. Higher index = closer to the final. */
-const ROUND_ORDER: Array<{ test: RegExp; ar: string; rank: number }> = [
-  { test: /play.?off|preliminary|qualif/i, ar: "الأدوار التمهيدية", rank: 0 },
-  { test: /round of 64|last 64/i, ar: "دور الـ64", rank: 1 },
-  { test: /round of 32|last 32/i, ar: "دور الـ32", rank: 2 },
-  { test: /round of 16|last 16|1\/8/i, ar: "دور الـ16", rank: 3 },
-  { test: /quarter|last 8|1\/4/i, ar: "ربع النهائي", rank: 4 },
-  { test: /semi|last 4|1\/2/i, ar: "نصف النهائي", rank: 5 },
-  { test: /3rd place|third place/i, ar: "تحديد المركز الثالث", rank: 6 },
-  { test: /final/i, ar: "النهائي", rank: 7 },
-];
-
-function classifyRound(stage: string | null): { ar: string; rank: number } | null {
-  if (!stage) return null;
-  // "final" must be tested last so it doesn't swallow "semi-final" — the array
-  // is ordered so the more specific rounds match first.
-  for (const round of ROUND_ORDER) {
-    if (round.test.test(stage)) {
-      // Guard: "semi-final" contains "final"; the semi entry precedes final in
-      // the array, so it wins. Nothing more needed.
-      return { ar: round.ar, rank: round.rank };
-    }
-  }
-  return null;
-}
 
 interface BracketColumn {
   ar: string;

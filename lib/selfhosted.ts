@@ -49,6 +49,7 @@ import { resolveBroadcast } from "./broadcast";
 import { compareMatches } from "./grouping";
 import { leaguePopularity } from "./config";
 import { MAX_MATCH_WINDOW_MINUTES, statusLabelAr } from "./clock";
+import { isKnockoutRound } from "./rounds";
 // Aliased because several functions below bind a local `nowUnix`; the trusted
 // clock must never be shadowed by one of them.
 import { nowDate, nowMs, nowUnix as trueNowUnix } from "./true-time";
@@ -553,6 +554,16 @@ function normalizeReferee(
 /** "Regular Season - 3" / "Group Stage - 1" -> 3 / 1. */
 function parseGameWeek(round: string | null | undefined): number | null {
   if (!round) return null;
+  /**
+   * A knockout round's number is not a matchday.
+   *
+   * "دور الـ 32" and "Round of 16" both end in digits, and reading them as a
+   * matchday produced a game week of 32 or 16 — which `stageAr` then rendered as
+   * "الجولة 32", replacing the real round name. The bracket classifies on that
+   * name, so every knockout tie in the World Cup became an unrecognised matchday
+   * and the bracket rendered nothing at all.
+   */
+  if (isKnockoutRound(round)) return null;
   const match = /(\d+)\s*$/.exec(round.trim());
   return match ? Number(match[1]) : null;
 }
