@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { leagueSlugRedirects } from "./lib/config";
 
 const nextConfig: NextConfig = {
   /**
@@ -22,7 +23,24 @@ const nextConfig: NextConfig = {
    * The `source` is the exact path — `/match/<id>` is untouched.
    */
   async redirects() {
-    return [{ source: "/match", destination: "/", permanent: true }];
+    return [
+      { source: "/match", destination: "/", permanent: true },
+      /**
+       * `/league/39` -> `/league/premier-league`.
+       *
+       * Both forms resolve to the same page, and two URLs serving one page is
+       * duplicate content — so the numeric one permanently redirects to the slug
+       * and the slug is the canonical. This also carries the numeric URLs that are
+       * already indexed (they were the only form until now) over to their
+       * replacements rather than stranding them.
+       *
+       * Generated from POPULAR_LEAGUES, so adding a competition cannot leave a
+       * slug without its redirect. Next preserves the query string, so
+       * `?season=2024` survives the hop. Uncurated competitions have no slug and
+       * keep their numeric URL untouched.
+       */
+      ...leagueSlugRedirects(),
+    ];
   },
   images: {
     // League crests and team logos are served from footballdata.io.

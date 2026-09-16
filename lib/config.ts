@@ -52,8 +52,27 @@ export function activeProvider(): ProviderName {
 }
 
 export interface PopularLeague {
-  /** Stable internal key. */
+  /**
+   * Stable internal key. NOT the URL — `slug` is.
+   *
+   * Kept separate because lib/broadcast.ts keys its channel table on this value,
+   * so it cannot be reworded for the sake of a nicer address.
+   */
   key: string;
+  /**
+   * The competition's segment in its URL: `/league/premier-league`.
+   *
+   * A numeric id in a URL tells a reader and a search engine nothing. The words
+   * in a URL are read by both — they show up in the result, in a shared link and
+   * in anchor text — so a curated competition gets a name there instead of
+   * `/league/39`.
+   *
+   * English rather than Arabic: both work, and Google decodes a percent-encoded
+   * Arabic slug back to Arabic in results, but a raw `%D8%A7%D9%84...` URL is
+   * hostile to copy, paste and debug. Once published a slug is permanent — the
+   * numeric form redirects to it — so changing one later costs a redirect chain.
+   */
+  slug: string;
   /** Arabic display name. */
   ar: string;
   /**
@@ -111,6 +130,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   // --- 0. Major international tournament (shown only while it runs) --------
   {
     key: "world-cup",
+    slug: "world-cup",
     ar: "كأس العالم",
     ids: [1],
     highlightlyId: 0,
@@ -121,6 +141,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   // --- 1. European: the cups first, then the big five leagues -------------
   {
     key: "ucl",
+    slug: "champions-league",
     ar: "دوري أبطال أوروبا",
     ids: [45, 2486, 2],
     highlightlyId: 2486,
@@ -129,6 +150,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "uel",
+    slug: "europa-league",
     ar: "الدوري الأوروبي",
     ids: [46, 3337, 3],
     highlightlyId: 3337,
@@ -137,6 +159,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "uecl",
+    slug: "conference-league",
     ar: "دوري المؤتمر الأوروبي",
     ids: [848],
     highlightlyId: 0,
@@ -155,6 +178,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   // name, no rank, and no place in the tabs or the sitemap.
   {
     key: "afc-champions-league",
+    slug: "afc-champions-league",
     ar: "دوري أبطال آسيا",
     ids: [17],
     highlightlyId: 0,
@@ -170,6 +194,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "caf-champions-league",
+    slug: "caf-champions-league",
     ar: "دوري أبطال أفريقيا",
     ids: [12],
     highlightlyId: 0,
@@ -178,6 +203,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "premier-league",
+    slug: "premier-league",
     ar: "الدوري الإنجليزي الممتاز",
     ids: [15, 33973, 39],
     highlightlyId: 33973,
@@ -186,6 +212,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "la-liga",
+    slug: "la-liga",
     ar: "الدوري الإسباني",
     ids: [10, 119924, 140],
     highlightlyId: 119924,
@@ -194,6 +221,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "serie-a",
+    slug: "serie-a",
     ar: "الدوري الإيطالي",
     ids: [115669, 135],
     highlightlyId: 115669,
@@ -207,6 +235,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "bundesliga",
+    slug: "bundesliga",
     ar: "الدوري الألماني",
     ids: [67162, 78],
     highlightlyId: 67162,
@@ -215,6 +244,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "ligue-1",
+    slug: "ligue-1",
     ar: "الدوري الفرنسي",
     ids: [52695, 61],
     highlightlyId: 52695,
@@ -225,6 +255,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   // --- 2. Arab: Saudi first, then the rest --------------------------------
   {
     key: "saudi-pro-league",
+    slug: "saudi-pro-league",
     ar: "دوري روشن السعودي",
     ids: [262041, 307],
     highlightlyId: 262041,
@@ -233,6 +264,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "egypt",
+    slug: "egyptian-premier-league",
     ar: "الدوري المصري",
     ids: [233],
     highlightlyId: 0,
@@ -241,6 +273,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "morocco",
+    slug: "botola-pro",
     ar: "الدوري المغربي",
     ids: [200],
     highlightlyId: 0,
@@ -249,6 +282,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "uae",
+    slug: "uae-pro-league",
     ar: "دوري المحترفين الإماراتي",
     ids: [301],
     highlightlyId: 0,
@@ -257,6 +291,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "qatar",
+    slug: "qatar-stars-league",
     ar: "دوري نجوم قطر",
     ids: [305],
     highlightlyId: 0,
@@ -265,6 +300,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "iraq",
+    slug: "iraqi-premier-league",
     ar: "دوري نجوم العراق",
     ids: [542],
     highlightlyId: 0,
@@ -273,6 +309,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "tunisia",
+    slug: "tunisian-ligue-1",
     ar: "الدوري التونسي",
     ids: [202],
     highlightlyId: 0,
@@ -281,6 +318,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "algeria",
+    slug: "algerian-ligue-1",
     ar: "الدوري الجزائري",
     ids: [186],
     highlightlyId: 0,
@@ -289,6 +327,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "jordan",
+    slug: "jordanian-pro-league",
     ar: "الدوري الأردني",
     ids: [387],
     highlightlyId: 0,
@@ -297,6 +336,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   },
   {
     key: "afcon",
+    slug: "africa-cup-of-nations",
     ar: "كأس الأمم الأفريقية",
     ids: [6],
     highlightlyId: 0,
@@ -307,6 +347,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
   // --- 3. A widely-followed extra, above the long alphabetical tail -------
   {
     key: "mls",
+    slug: "mls",
     ar: "الدوري الأمريكي",
     ids: [216087, 253],
     highlightlyId: 216087,
@@ -441,6 +482,60 @@ export function matchesLeagueId(entry: PopularLeague, leagueId: number): boolean
  */
 export function isPinnedLeague(leagueId: number): boolean {
   return POPULAR_LEAGUES.some((entry) => matchesLeagueId(entry, leagueId));
+}
+
+/** The curated competition behind an id, or null for everything else. */
+export function pinnedLeague(leagueId: number): PopularLeague | null {
+  return POPULAR_LEAGUES.find((entry) => matchesLeagueId(entry, leagueId)) ?? null;
+}
+
+/** `39` -> `"premier-league"`, or null when the competition is not curated. */
+export function leagueSlug(leagueId: number): string | null {
+  return pinnedLeague(leagueId)?.slug ?? null;
+}
+
+/**
+ * `"premier-league"` -> `39`, or null when nothing claims that slug.
+ *
+ * Only the slug is accepted, not the internal `key`: two names for one URL is
+ * how duplicate content starts.
+ */
+export function leagueIdFromSlug(slug: string): number | null {
+  const wanted = slug.trim().toLowerCase();
+  const entry = POPULAR_LEAGUES.find((league) => league.slug === wanted);
+  return entry ? entry.apiFootballId : null;
+}
+
+/**
+ * The URL for a competition — the ONE place that decides its shape.
+ *
+ * Curated competitions get their slug; everything else keeps its numeric id,
+ * because a competition with no entry here has no name to put in a URL. Every
+ * link in the app goes through this, so the numeric form is never linked
+ * internally for a competition that has a slug — otherwise every internal click
+ * would take the redirect hop declared in next.config.ts.
+ */
+export function leagueHref(leagueId: number): string {
+  return `/league/${leagueSlug(leagueId) ?? leagueId}`;
+}
+
+/**
+ * Every `/league/<id>` -> `/league/<slug>` redirect, for next.config.ts.
+ *
+ * Generated from the table above rather than written out, so a new competition
+ * cannot be added with a slug and no redirect. Both forms would otherwise stay
+ * live and index separately.
+ */
+export function leagueSlugRedirects(): Array<{
+  source: string;
+  destination: string;
+  permanent: true;
+}> {
+  return POPULAR_LEAGUES.map((league) => ({
+    source: `/league/${league.apiFootballId}`,
+    destination: `/league/${league.slug}`,
+    permanent: true,
+  }));
 }
 
 export function leaguePopularity(

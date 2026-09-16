@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { t } from "@/lib/i18n";
+import { leagueHref } from "@/lib/config";
 
 interface SeasonSelectProps {
   leagueId: number;
@@ -28,7 +29,7 @@ export function SeasonSelect({ leagueId, seasons, selected }: SeasonSelectProps)
         value={selected}
         onChange={(e) => {
           const year = e.target.value;
-          router.push(`/league/${leagueId}?season=${year}`);
+          router.push(`${leagueHref(leagueId)}?season=${year}`);
         }}
         className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground focus:border-accent focus:outline-none"
       >

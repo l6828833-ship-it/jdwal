@@ -42,7 +42,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
    */
   const leaguePages = POPULAR_LEAGUES.map((league, index) =>
     page(
-      `/league/${league.apiFootballId}`,
+      `/league/${league.slug}`,
       Math.max(0.4, 0.75 - index * 0.01),
       "daily",
     ),

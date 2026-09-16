@@ -3,6 +3,7 @@ import { Crest } from "./crest";
 import { MatchRow } from "./match-row";
 import { t } from "@/lib/i18n";
 import type { LeagueGroup as LeagueGroupData } from "@/lib/grouping";
+import { leagueHref } from "@/lib/config";
 
 /** Ranked-bars glyph, the conventional standings icon. */
 function StandingsIcon() {
@@ -50,7 +51,7 @@ export function LeagueGroup({
         {/* Crest + name link to the league page; the trailing standings icon
             is an explicit affordance for the table, as requested. */}
         <NavLink
-          href={`/league/${group.league.id}`}
+          href={leagueHref(group.league.id)}
           className="flex items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-surface-hover sm:px-4"
         >
           <Crest src={group.league.logo} name={group.league.name} size={22} />

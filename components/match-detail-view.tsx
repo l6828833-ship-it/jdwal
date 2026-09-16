@@ -10,7 +10,7 @@ import { useTimezone } from "./timezone-provider";
 import { useMinuteAnchor } from "./use-minute-anchor";
 import { useServerNow } from "./use-server-now";
 import { liveClock } from "@/lib/clock";
-import { LIVE_POLL_SECONDS } from "@/lib/config";
+import { leagueHref, LIVE_POLL_SECONDS } from "@/lib/config";
 import { formatDateLong, formatKickoff, toDateKey } from "@/lib/date";
 import { BROADCAST_REGION } from "@/lib/broadcast";
 import { t } from "@/lib/i18n";
@@ -142,7 +142,7 @@ export function MatchDetailView({
 
           <h1 className="flex min-w-0 flex-1 items-center">
             <NavLink
-              href={`/league/${match.league.id}`}
+              href={leagueHref(match.league.id)}
               className="flex min-w-0 items-center gap-2 transition-colors hover:text-accent"
             >
               <Crest src={match.league.logo} name={match.league.name} size={20} />

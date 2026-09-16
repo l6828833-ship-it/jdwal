@@ -2,7 +2,7 @@ import { NavLink } from "@/components/nav-link";
 import { Crest, Flag } from "@/components/crest";
 import { ApiKeyNotice, EmptyState } from "@/components/notices";
 import { getLeagues, hasApiKey } from "@/lib/provider";
-import { LEAGUE_LIST_LIMIT, POPULAR_LEAGUES } from "@/lib/config";
+import { LEAGUE_LIST_LIMIT, leagueHref, POPULAR_LEAGUES } from "@/lib/config";
 import { countryCode, countryNameAr } from "@/lib/countries";
 import { logFailure } from "@/lib/errors";
 import type { Metadata } from "next";
@@ -139,7 +139,7 @@ export default async function LeaguesPage() {
             {leagues.map((league) => (
               <li key={league.id} className="border-b border-divider last:border-b-0">
                 <NavLink
-                  href={`/league/${league.id}`}
+                  href={leagueHref(league.id)}
                   className={`flex items-center gap-3 border-s-2 px-3 py-3 transition-colors hover:bg-surface-hover sm:px-4 ${
                     league.isPopular ? "border-s-accent" : "border-s-transparent"
                   }`}
