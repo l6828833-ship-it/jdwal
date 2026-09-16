@@ -845,10 +845,16 @@ function canBeLive(dateKey: string): boolean {
   return Math.abs(noon - todayNoon) <= 24 * 60 * 60 * 1000;
 }
 
+/**
+ * @param timezone The VIEWER's zone, which decides where the day begins and
+ *   ends. Defaults to UTC only so a caller that has not resolved a zone still
+ *   gets a coherent day rather than throwing.
+ */
 export async function getMatchesByDate(
   dateKey: string,
   todayKeyValue: string,
   background = false,
+  timezone: string = "UTC",
 ): Promise<{ matches: Match[]; meta: ApiMeta; nowUnix: number }> {
   const isToday = dateKey === todayKeyValue;
   const live = canBeLive(dateKey);
@@ -867,14 +873,37 @@ export async function getMatchesByDate(
    */
   const [cached, liveMap] = await Promise.all([
     getCached(
-      `sh-matches:${dateKey}`,
+      // The zone is part of the key: two viewers on different zones asking for
+      // the same date are asking for different sets of matches.
+      `sh-matches:${dateKey}:${timezone}`,
       async () =>
         asFixtureList(
           await apiFetch<unknown>("/fixtures/getFixtures", {
             date: dateKey,
-            // Ask for UTC and convert for display ourselves, so one cache entry
-            // serves every reader regardless of their timezone.
-            timezone: "UTC",
+            /**
+             * The VIEWER's zone, and the parameter name the backend actually
+             * reads.
+             *
+             * This used to send `timezone: "UTC"`, to keep one cache entry per
+             * date regardless of who was asking. Two things were wrong with it.
+             *
+             * The backend's 365scores path reads `timezoneName`, not `timezone`,
+             * so the value was ignored outright — verified by calling both:
+             * `timezone=Asia/Riyadh` and `timezone=UTC` return byte-identical
+             * sets, while `timezoneName=Asia/Riyadh` returns a different one.
+             *
+             * And UTC is the wrong day boundary for almost every reader here. A
+             * "day" of fixtures is whatever falls between midnight and midnight,
+             * and for a viewer in Riyadh (UTC+3) the UTC day 2026-09-15 runs from
+             * 03:00 on the 15th to 02:30 on the 16th LOCAL. So matches kicking
+             * off between midnight and 03:00 were missing from today and sitting
+             * in yesterday's list, while tomorrow's small hours appeared in
+             * today's — exactly the reported symptom. Asking the source to bucket
+             * by the viewer's zone (205 fixtures, 00:00–23:30 local) instead of
+             * re-bucketing 214 UTC-day fixtures ourselves keeps this app and the
+             * source agreeing on what "a day" means.
+             */
+            timezoneName: timezone,
           }),
         ),
       {

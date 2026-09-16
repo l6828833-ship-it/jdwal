@@ -139,8 +139,18 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
       if (!background) wantedDate.current = targetDate;
 
       try {
+        /**
+         * `tz` is sent explicitly rather than left to the server to infer.
+         *
+         * The response depends on the zone — it decides where the day starts and
+         * ends — and it is cached publicly, so the zone has to be part of the URL
+         * for any cache to key on it. This is the zone the SERVER resolved and
+         * handed to the client (see components/timezone-provider.tsx), so it is
+         * echoed back rather than invented here.
+         */
         const url =
           `/api/matches?date=${encodeURIComponent(targetDate)}` +
+          `&tz=${encodeURIComponent(timezone)}` +
           (background ? "&bg=1" : "");
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) {
@@ -173,7 +183,9 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
         revertToHeldDay(fallback);
       }
     },
-    [revertToHeldDay],
+    // `timezone` is in the URL now, so a zone change has to produce a new
+    // `load` rather than one closed over a stale zone.
+    [revertToHeldDay, timezone],
   );
 
   const handleSelectDate = useCallback(

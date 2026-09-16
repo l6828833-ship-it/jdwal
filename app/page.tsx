@@ -24,9 +24,12 @@ export const dynamic = "force-dynamic";
  * extra: `getCached` coalesces concurrent calls for the same key and then serves
  * the entry, so both readers share one upstream request.
  */
-async function fixturesAvailable(today: string): Promise<boolean> {
+async function fixturesAvailable(
+  today: string,
+  timezone: string,
+): Promise<boolean> {
   try {
-    const { matches } = await getMatchesByDate(today, today);
+    const { matches } = await getMatchesByDate(today, today, false, timezone);
     return matches.length > 0;
   } catch {
     return false;
@@ -42,11 +45,12 @@ async function fixturesAvailable(today: string): Promise<boolean> {
 export async function generateMetadata(): Promise<Metadata> {
   if (!hasApiKey()) return { robots: NOINDEX_FOLLOW };
 
-  const { today } = await resolveRequestTime();
+  const { today, timezone } = await resolveRequestTime();
 
   return {
     alternates: { canonical: "/" },
-    robots: robotsFor(await fixturesAvailable(today)),
+    // Same arguments the page uses, so both share one cached lookup.
+    robots: robotsFor(await fixturesAvailable(today, timezone)),
   };
 }
 
@@ -65,11 +69,19 @@ export default async function HomePage() {
    * lands on the wrong date, and then the whole page is a different day's
    * fixtures.
    */
-  const { today } = await resolveRequestTime();
+  const { today, timezone } = await resolveRequestTime();
 
   let payload: MatchesPayload;
   try {
-    const { matches, meta, nowUnix } = await getMatchesByDate(today, today);
+    // `timezone` decides where the day starts: without it the list is a UTC day,
+    // which for a reader in Riyadh drops the small hours of their own morning and
+    // shows tomorrow's instead. See lib/selfhosted.ts.
+    const { matches, meta, nowUnix } = await getMatchesByDate(
+      today,
+      today,
+      false,
+      timezone,
+    );
     payload = { date: today, matches, meta, nowUnix };
   } catch (error) {
     if (classifyFailure(error) === "quota") return <QuotaNotice />;

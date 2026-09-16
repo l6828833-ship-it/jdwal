@@ -92,14 +92,24 @@ export function getMatchesByDate(
   dateKey: string,
   todayKeyValue: string,
   background = false,
+  /** The viewer's zone. See `dispatchMatchesByDate` below. */
+  timezone?: string,
 ) {
-  return withTrueTime(() => dispatchMatchesByDate(dateKey, todayKeyValue, background));
+  return withTrueTime(() =>
+    dispatchMatchesByDate(dateKey, todayKeyValue, background, timezone),
+  );
 }
 
 function dispatchMatchesByDate(
   dateKey: string,
   todayKeyValue: string,
   background: boolean,
+  /**
+   * The viewer's zone, which decides where the day starts and ends. Only the
+   * self-hosted backend can bucket by it; the hosted providers have no such
+   * parameter, so they keep their existing UTC-day behaviour.
+   */
+  timezone?: string,
 ) {
   switch (activeProvider()) {
     case "footballdata":
@@ -109,7 +119,12 @@ function dispatchMatchesByDate(
     case "highlightly":
       return highlightly.getMatchesByDate(dateKey, todayKeyValue, background);
     default:
-      return selfhosted.getMatchesByDate(dateKey, todayKeyValue, background);
+      return selfhosted.getMatchesByDate(
+        dateKey,
+        todayKeyValue,
+        background,
+        timezone,
+      );
   }
 }
 

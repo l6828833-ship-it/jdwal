@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { getMatchesByDate } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
 import { logFailure } from "@/lib/errors";
-import { isValidDateKey, dateKeyDiff } from "@/lib/date";
+import { isValidDateKey, dateKeyDiff, isValidTimezone, todayKey } from "@/lib/date";
 import { resolveRequestTime } from "@/lib/geo-timezone";
 import { DATE_RANGE_DAYS, LIVE_CACHE_CONTROL } from "@/lib/config";
 import type { MatchesPayload } from "@/lib/types";
@@ -22,8 +22,37 @@ export async function GET(request: NextRequest) {
   // by a day and the range check below wrongly rejects dates the user can still
   // navigate to — which showed up as an empty screen when paging a couple of
   // days ahead. See resolveRequestTime.
-  const { today, timezone, source, hostClockOffsetSeconds } =
-    await resolveRequestTime();
+  const {
+    today: resolvedToday,
+    timezone: resolvedTimezone,
+    source,
+    hostClockOffsetSeconds,
+  } = await resolveRequestTime();
+
+  /**
+   * The zone comes from the CLIENT when it sends one, and that is deliberate.
+   *
+   * The response body now depends on the zone — it decides where the day starts
+   * and ends — while the zone itself was being read from request HEADERS the CDN
+   * does not key on. This response is cached publicly (see LIVE_CACHE_CONTROL),
+   * so one reader's day could be served to a reader three hours away.
+   *
+   * Taking it as a query parameter puts it in the URL, which every cache keys on
+   * by definition. The client already holds the server-resolved zone (see
+   * components/timezone-provider.tsx), so it is echoing back what this server
+   * told it, not asserting something new. An absent or unparseable value falls
+   * back to the IP-resolved zone, so a hand-typed URL still works.
+   */
+  const requestedZone = request.nextUrl.searchParams.get("tz");
+  const timezone = isValidTimezone(requestedZone)
+    ? requestedZone
+    : resolvedTimezone;
+
+  // "Today" has to be read in the SAME zone as the fixtures, or the range check
+  // below rejects a date the client can legitimately reach.
+  const today =
+    timezone === resolvedTimezone ? resolvedToday : todayKey(timezone);
+
   const requested = request.nextUrl.searchParams.get("date") ?? today;
 
   if (!isValidDateKey(requested)) {
@@ -54,6 +83,9 @@ export async function GET(request: NextRequest) {
       requested,
       today,
       background,
+      // The same zone the date range above was computed in, so the day the
+      // client asked for is the day it gets. See lib/selfhosted.ts.
+      timezone,
     );
     const payload: MatchesPayload = { date: requested, matches, meta, nowUnix };
 
@@ -70,7 +102,9 @@ export async function GET(request: NextRequest) {
          * `payload.date` never match the day it asked for and sat on "loading"
          * forever. Varying on `date` gives each day its own entry.
          */
-        "Netlify-Vary": "query=date",
+        // `tz` as well as `date`: the body depends on both, so both must be part
+        // of the cache key or a viewer gets another zone's day.
+        "Netlify-Vary": "query=date|tz",
         // Same intent for any other standards-compliant CDN in front of this.
         Vary: "Accept-Encoding",
         /**

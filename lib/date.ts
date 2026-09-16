@@ -103,6 +103,27 @@ export function resolveTimezone(timeZone?: string | null): string {
   return timeZone || FALLBACK_TIMEZONE;
 }
 
+/**
+ * Is this a zone the runtime actually knows?
+ *
+ * Used to vet a timezone that arrived from a QUERY PARAMETER, which is attacker-
+ * controlled input on its way into `Intl.DateTimeFormat`. A bad value there
+ * throws a RangeError, and this is called on a path that decides which day of
+ * fixtures to serve — so an unchecked string turns a typo into a 500. Asking the
+ * runtime is the only correct test: the IANA database is what `Intl` resolves
+ * against, and hand-written pattern matching would reject valid zones like
+ * `Asia/Kolkata` or accept nonsense that merely looks like a zone.
+ */
+export function isValidTimezone(timeZone: string | null | undefined): timeZone is string {
+  if (!timeZone) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Break a Date into calendar parts as seen in the given timezone. */
 export function zonedParts(date: Date, timeZone?: string | null): ZonedParts {
   const parts = partsFormatter(resolveTimezone(timeZone)).formatToParts(date);
