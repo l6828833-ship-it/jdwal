@@ -9,7 +9,7 @@ import { TopBar } from "./top-bar";
 import { useTimezone } from "./timezone-provider";
 import { useServerNow } from "./use-server-now";
 import { LeagueGroupSkeleton, LoadingAnnounce } from "./skeleton";
-import { groupByLeague, isPopularMatch } from "@/lib/grouping";
+import { groupByLeague, isCarriedMatch, isPopularMatch } from "@/lib/grouping";
 import { LIVE_POLL_SECONDS } from "@/lib/config";
 import { toDateKey } from "@/lib/date";
 import { t } from "@/lib/i18n";
@@ -49,9 +49,22 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const liveCount = useMemo(
-    () => payload.matches.filter((match) => match.status === "live").length,
+  /**
+   * The day's matches, minus the competitions the site does not carry.
+   *
+   * Derived once and used by everything below — the counts, the live pill, the
+   * poll trigger and the groups. `groupByLeague` filters too, but if the counts
+   * were taken from the raw payload they would advertise fixtures that the list
+   * underneath does not contain.
+   */
+  const visibleMatches = useMemo(
+    () => payload.matches.filter(isCarriedMatch),
     [payload.matches],
+  );
+
+  const liveCount = useMemo(
+    () => visibleMatches.filter((match) => match.status === "live").length,
+    [visibleMatches],
   );
 
   /**
@@ -226,10 +239,10 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
   const kickoffImminent = useMemo(() => {
     if (!showingSelectedDate) return false;
     const soon = nowUnix + 60 * 60;
-    return payload.matches.some(
+    return visibleMatches.some(
       (m) => m.status === "scheduled" && m.kickoffUnix <= soon && m.kickoffUnix >= nowUnix - 5 * 60,
     );
-  }, [showingSelectedDate, payload.matches, nowUnix]);
+  }, [showingSelectedDate, visibleMatches, nowUnix]);
 
   /**
    * Whether the day being shown could contain a live match now — today in the
@@ -293,17 +306,17 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
 
   const counts = useMemo(
     () => ({
-      all: payload.matches.length,
-      top: payload.matches.filter(isPopularMatch).length,
+      all: visibleMatches.length,
+      top: visibleMatches.filter(isPopularMatch).length,
     }),
-    [payload.matches],
+    [visibleMatches],
   );
 
   const groups = useMemo(() => {
     if (!showingSelectedDate) return [];
     const normalizedQuery = query.trim().toLowerCase();
 
-    const filtered = payload.matches.filter((match) => {
+    const filtered = visibleMatches.filter((match) => {
       if (filter === "top" && !isPopularMatch(match)) return false;
       if (liveOnly && match.status !== "live") return false;
       if (normalizedQuery) {
@@ -323,7 +336,7 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
     });
 
     return groupByLeague(filtered);
-  }, [showingSelectedDate, payload.matches, filter, liveOnly, query]);
+  }, [showingSelectedDate, visibleMatches, filter, liveOnly, query]);
 
   const emptyMessage = !showingSelectedDate
     ? error === t.quotaNotice

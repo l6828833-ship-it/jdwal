@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { getMatchesByDate } from "@/lib/provider";
 import { BudgetExhaustedError } from "@/lib/cache";
 import { logFailure } from "@/lib/errors";
+import { isCarriedMatch } from "@/lib/grouping";
 import { isValidDateKey, dateKeyDiff, isValidTimezone, todayKey } from "@/lib/date";
 import { resolveRequestTime } from "@/lib/geo-timezone";
 import { DATE_RANGE_DAYS, LIVE_CACHE_CONTROL } from "@/lib/config";
@@ -87,7 +88,14 @@ export async function GET(request: NextRequest) {
       // client asked for is the day it gets. See lib/selfhosted.ts.
       timezone,
     );
-    const payload: MatchesPayload = { date: requested, matches, meta, nowUnix };
+    const payload: MatchesPayload = {
+      date: requested,
+      // Same filter the server-rendered page applies, so a day fetched by the
+      // client and a day rendered on the server hold the same fixtures.
+      matches: matches.filter(isCarriedMatch),
+      meta,
+      nowUnix,
+    };
 
     return Response.json(payload, {
       headers: {

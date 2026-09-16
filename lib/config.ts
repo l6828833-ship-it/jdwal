@@ -670,6 +670,92 @@ export function matchesLeagueId(entry: PopularLeague, leagueId: number): boolean
  * The pinned list is the answer to "which league pages are worth indexing", and
  * it is the same list the sitemap is built from, so the two cannot drift.
  */
+/**
+ * Competitions this site does not carry at all.
+ *
+ * Distinct from "not popular": an unpopular competition still appears, ranked
+ * below the pinned ones. These are removed from the fixture lists and the
+ * catalogue outright, because their presence made the app hard to read — a day
+ * runs to ~550 fixtures worldwide, and the recognisable competitions were a small
+ * minority buried among reserve, youth and fourth-tier games.
+ *
+ * Two categories, both judgements about the KIND of competition rather than its
+ * country or size:
+ *
+ *   1. Not senior men's first-team football — women's, youth and age-group,
+ *      reserves, futsal, beach, esports, friendlies. These arrive SHARING their
+ *      parent competition's name, which is also how they used to inherit its
+ *      popularity rank.
+ *   2. Lower divisions — second tier and below.
+ *
+ * A pinned competition is never hidden, so a second tier that genuinely is
+ * followed can be curated in POPULAR_LEAGUES and keeps showing.
+ *
+ * Deliberately NOT hidden: small-nation TOP divisions. They are real first-tier
+ * football and someone from that country may be looking for exactly them, so they
+ * stay — merely unranked, below everything curated. This is the one place that
+ * decides, so tightening it later is a single edit.
+ */
+const NOT_CARRIED = new RegExp(
+  [
+    // --- not senior men's first-team football, English ---
+    "\\bu-?\\d{2}\\b",
+    "\\byouth\\b",
+    "\\bjunior\\b",
+    "\\bwomen",
+    "\\bfeminine\\b",
+    "\\bladies\\b",
+    "\\bgirls\\b",
+    "\\bboys\\b",
+    "\\breserve",
+    "\\bacademy\\b",
+    "\\bamateur\\b",
+    "\\bfutsal\\b",
+    "\\bbeach\\b",
+    "\\besports\\b",
+    "\\bfriendl",
+    // --- the same in Arabic. No `\b`: it is defined on ASCII word characters and
+    // does not behave meaningfully against Arabic script.
+    "للسيدات",
+    "سيدات",
+    "نساء",
+    "للشباب",
+    "الناشئين",
+    "ناشئين",
+    "أواسط",
+    "رديف",
+    "تحت\\s*\\d{2}",
+    "أولمبي",
+    "الصالات",
+    "الشاطئية",
+    "ودية",
+    // --- lower divisions ---
+    "\\bdivision\\s*[234]\\b",
+    "\\b[234]\\.\\s*liga\\b",
+    "\\bserie\\s*[cd]\\b",
+    "\\bsegunda\\b",
+    "\\bregionalliga\\b",
+    "\\boberliga\\b",
+    "\\bnational\\s*[23]\\b",
+    "الدرجة الثانية",
+    "الدرجة الثالثة",
+    "الدرجة الرابعة",
+  ].join("|"),
+  "i",
+);
+
+/**
+ * Should this competition appear anywhere in the app?
+ *
+ * A pinned competition always does — the curated list overrides the filter, so
+ * anything hidden by accident is fixable by pinning it rather than by unpicking a
+ * regex.
+ */
+export function isCarriedLeague(leagueId: number, leagueName: string): boolean {
+  if (isPinnedLeague(leagueId)) return true;
+  return !NOT_CARRIED.test(normalize(leagueName));
+}
+
 export function isPinnedLeague(leagueId: number): boolean {
   return POPULAR_LEAGUES.some((entry) => matchesLeagueId(entry, leagueId));
 }

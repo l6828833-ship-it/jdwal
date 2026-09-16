@@ -7,7 +7,7 @@
  * data, which costs zero extra upstream requests.
  */
 
-import { leaguePopularity } from "./config";
+import { isCarriedLeague, leaguePopularity } from "./config";
 import type { LeagueRef, Match } from "./types";
 
 export interface LeagueGroup {
@@ -31,6 +31,16 @@ export function groupByLeague(matches: Match[]): LeagueGroup[] {
   const groups = new Map<number, LeagueGroup>();
 
   for (const match of matches) {
+    /**
+     * Competitions the site does not carry never reach a list.
+     *
+     * Filtered HERE rather than at the provider, so one rule covers every screen
+     * that groups fixtures — the home page, the day API and the league page all
+     * come through this function. Filtering in the provider would have meant the
+     * counts in the filter tabs disagreeing with the list underneath them.
+     */
+    if (!isCarriedLeague(match.league.id, match.league.nameOriginal)) continue;
+
     let group = groups.get(match.league.id);
     if (!group) {
       const { rank } = leaguePopularity(match.league.id, match.league.nameOriginal);
@@ -62,4 +72,15 @@ export function groupByLeague(matches: Match[]): LeagueGroup[] {
 export function isPopularMatch(match: Match): boolean {
   const { rank } = leaguePopularity(match.league.id, match.league.nameOriginal);
   return Number.isFinite(rank);
+}
+
+/**
+ * Is this match in a competition the site carries at all? See `isCarriedLeague`.
+ *
+ * Exported so a caller can apply the same filter BEFORE counting. `groupByLeague`
+ * drops these on its own, but a count taken from the raw list would then disagree
+ * with the list rendered under it.
+ */
+export function isCarriedMatch(match: Match): boolean {
+  return isCarriedLeague(match.league.id, match.league.nameOriginal);
 }

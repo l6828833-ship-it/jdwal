@@ -2,7 +2,12 @@ import { NavLink } from "@/components/nav-link";
 import { Crest, Flag } from "@/components/crest";
 import { ApiKeyNotice, EmptyState } from "@/components/notices";
 import { getLeagues, hasApiKey } from "@/lib/provider";
-import { LEAGUE_LIST_LIMIT, leagueHref, POPULAR_LEAGUES } from "@/lib/config";
+import {
+  isCarriedLeague,
+  LEAGUE_LIST_LIMIT,
+  leagueHref,
+  POPULAR_LEAGUES,
+} from "@/lib/config";
 import { countryCode, countryNameAr } from "@/lib/countries";
 import { logFailure } from "@/lib/errors";
 import type { Metadata } from "next";
@@ -78,7 +83,11 @@ function buildLeagueList(fromProvider: LeagueSummary[]): LeagueSummary[] {
     }
   }
 
-  const all = [...map.values()];
+  // Same rule as the fixture lists: a competition the site does not carry does
+  // not belong in its catalogue either.
+  const all = [...map.values()].filter((league) =>
+    isCarriedLeague(league.id, league.nameOriginal),
+  );
   all.sort((a, b) => {
     if (a.popularityRank !== b.popularityRank)
       return a.popularityRank - b.popularityRank;

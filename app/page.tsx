@@ -6,6 +6,7 @@ import { resolveRequestTime } from "@/lib/geo-timezone";
 import { ApiKeyNotice, LoadErrorNotice, QuotaNotice } from "@/components/notices";
 import { SITE_URL } from "@/lib/config";
 import { classifyFailure, logFailure } from "@/lib/errors";
+import { isCarriedMatch } from "@/lib/grouping";
 import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
 import { t } from "@/lib/i18n";
 import type { MatchesPayload } from "@/lib/types";
@@ -30,7 +31,10 @@ async function fixturesAvailable(
 ): Promise<boolean> {
   try {
     const { matches } = await getMatchesByDate(today, today, false, timezone);
-    return matches.length > 0;
+    // Counted after the carried-competition filter: a day holding nothing but
+    // hidden competitions renders an empty page, and an empty page must not
+    // declare itself indexable.
+    return matches.some(isCarriedMatch);
   } catch {
     return false;
   }
@@ -82,7 +86,14 @@ export default async function HomePage() {
       false,
       timezone,
     );
-    payload = { date: today, matches, meta, nowUnix };
+    payload = {
+      date: today,
+      // Filtered here so a competition the site does not carry never reaches the
+      // browser at all — it is neither rendered nor shipped in the payload.
+      matches: matches.filter(isCarriedMatch),
+      meta,
+      nowUnix,
+    };
   } catch (error) {
     if (classifyFailure(error) === "quota") return <QuotaNotice />;
     // The detail goes to the server log; the page gets a sanitised message.
