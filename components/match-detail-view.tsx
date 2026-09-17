@@ -449,7 +449,20 @@ function MatchTimeline({
       <ul>
         {events.map((event, i) => {
           const style = EVENT_STYLE[event.kind];
-          const away = event.team === "away";
+          /**
+           * `event.team` is the team of the PLAYER. For an own goal that is the
+           * team it was scored AGAINST, so the row is placed on the other side —
+           * the side it counted for, which is where a reader looks for it and how
+           * the scoreline adds up. The label still names the player's own club, so
+           * the row cannot read as though they play for the team that benefited.
+           */
+          const scoringSide =
+            event.kind === "own"
+              ? event.team === "home"
+                ? "away"
+                : "home"
+              : event.team;
+          const away = scoringSide === "away";
           return (
             <li
               key={`${event.minute}-${event.player}-${event.kind}-${i}`}
@@ -460,8 +473,30 @@ function MatchTimeline({
               <span className="min-w-[2.5rem] shrink-0 text-xs font-bold text-accent tnum">
                 {event.minute}&apos;
               </span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
+              {/**
+               * Mirroring an away row takes all three of these, not just the
+               * `flex-row-reverse` on the row above.
+               *
+               * With only that, the minute moved to the far side but the name did
+               * not: the column below is `flex-1`, so it fills the rest of the row
+               * either way, and the name inside it is a flex line whose items sit
+               * at the container's start — the same visual side for both teams.
+               * `text-end` did not help, because it aligns text inside a block and
+               * that line is a flex container. The result was two teams' rows
+               * looking alike apart from where the minute sat.
+               *
+               * `items-end` moves the column's content to the opposite edge, and
+               * reversing the name line puts the icon on the mirrored side of the
+               * name so the two halves read as facing each other.
+               */}
+              <span
+                className={`flex min-w-0 flex-1 flex-col ${away ? "items-end" : ""}`}
+              >
+                <span
+                  className={`flex min-w-0 max-w-full items-center gap-1.5 text-sm font-medium text-foreground ${
+                    away ? "flex-row-reverse" : ""
+                  }`}
+                >
                   {style.card ? (
                     <span
                       /* The card's meaning is in `aria-label`, not the colour,
@@ -477,11 +512,13 @@ function MatchTimeline({
                   <span className="truncate">{event.player}</span>
                 </span>
                 {(style.label || event.assist) && (
-                  <span className="truncate text-[0.7rem] text-muted">
+                  <span className="max-w-full truncate text-[0.7rem] text-muted">
                     {/* The team is named on every row: with two columns of
                         right- and left-aligned text, alignment alone is a weak
                         signal on a narrow screen. */}
-                    {away ? awayName : homeName}
+                    {/* The PLAYER's team, which for an own goal is not the side
+                        the row sits on. */}
+                    {event.team === "away" ? awayName : homeName}
                     {style.label ? ` · ${style.label}` : ""}
                     {event.assist ? ` · ${t.assist}: ${event.assist}` : ""}
                   </span>
