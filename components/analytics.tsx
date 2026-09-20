@@ -1,5 +1,8 @@
+"use client";
+
 import Script from "next/script";
 import { GA_MEASUREMENT_ID } from "@/lib/config";
+import { useConsent } from "@/components/consent";
 
 /**
  * Google Analytics 4 (gtag.js).
@@ -20,12 +23,21 @@ import { GA_MEASUREMENT_ID } from "@/lib/config";
  * covers every route. There is no SPA route-change hook to wire up, and adding
  * one would double-count.
  *
- * Development is excluded. Localhost hits otherwise land in the same property as
- * real traffic and quietly distort exactly the numbers the property exists to
- * report. Verify with GA4 Realtime against the deployed site instead.
+ * The tag loads only after the visitor accepts optional services through the
+ * shared ConsentProvider. Rejecting consent leaves the full football product
+ * available and emits no GA request. Development is excluded. Localhost hits
+ * otherwise land in the same property as real traffic and quietly distort
+ * exactly the numbers the property exists to report.
  */
 export function Analytics() {
-  if (!GA_MEASUREMENT_ID || process.env.NODE_ENV !== "production") return null;
+  const { choice } = useConsent();
+  if (
+    !GA_MEASUREMENT_ID ||
+    process.env.NODE_ENV !== "production" ||
+    choice !== "accepted"
+  ) {
+    return null;
+  }
 
   return (
     <>
