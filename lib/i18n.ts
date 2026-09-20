@@ -215,9 +215,14 @@ export const t = {
   // UI labels. The brand's spellings appear once each, in a sentence — a list of
   // repeated keywords would read as spam to both audiences.
   // -------------------------------------------------------------------------
+  /**
+   * Homepage search copy, based on the site's real Search Console queries:
+   * jdwal, jdwel, موقع جدول, and jdwel مباريات اليوم.
+   */
+  seoTitle: "موقع جدول مباريات اليوم ونتائج مباشرة | jdwal - jdwel",
   /** The homepage h1. Short enough for the header bar, and the primary term. */
   seoHeadingShort: "جدول مباريات اليوم",
-  seoHeading: "جدول مباريات اليوم ونتائج مباشرة",
+  seoHeading: "موقع جدول مباريات اليوم ونتائج مباشرة",
   /**
    * Mentions the day's real fixture count, so the paragraph is specific to this
    * render rather than boilerplate repeated on every crawl.
@@ -232,17 +237,17 @@ export const t = {
         `كل مباراة وترتيب الدوريات وقائمة الهدافين — الدوريات الأوروبية الكبرى ` +
         `ودوري أبطال أوروبا والدوريات العربية.`,
   seoBrands:
-    "جدول (jdwal) موقع عربي لمتابعة مواعيد المباريات والنتائج المباشرة، " +
-    "ويُكتب اسمه أيضاً jadwal أو jdwel. لا حاجة لتسجيل الدخول، والمواعيد تُحوَّل " +
-    "تلقائياً إلى توقيت بلدك.",
+    "موقع جدول (jdwal) منصة عربية لمتابعة مباريات اليوم ونتائج كرة القدم، " +
+    "ويبحث عنه المستخدمون أيضاً باسم jdwel أو jadwal. لا حاجة لتسجيل الدخول، " +
+    "والمواعيد تُحوَّل تلقائياً إلى توقيت بلدك.",
   seoLinksLabel: "أقسام الموقع",
   seoLinkLeagues: "ترتيب الدوريات",
   seoLinkScorers: "ترتيب الهدافين",
   seoLinkPlayers: "بحث اللاعبين",
   /** Shared by the page description and the WebPage structured data. */
   seoMetaDescription:
-    "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم: الدوريات الكبرى " +
-    "ودوري أبطال أوروبا والدوريات العربية مع الترتيب والهدافين.",
+    "موقع جدول jdwal، ويُكتب أيضاً jdwel، لمتابعة جدول مباريات اليوم والغد " +
+    "والنتائج المباشرة وترتيب الدوريات والهدافين بتوقيت بلدك.",
 } as const;
 
 /** Arabic names for leagues outside the pinned popular list. */

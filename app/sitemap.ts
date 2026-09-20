@@ -58,6 +58,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page("/leagues", 0.8, "weekly"),
     page("/scorers", 0.7, "daily"),
     page("/players", 0.5, "weekly"),
+    // Publisher transparency and original evergreen content. Privacy, cookies,
+    // terms and disclaimer are deliberately absent because those pages declare
+    // noindex,follow; a sitemap must contain only indexable canonical URLs.
+    page("/about", 0.6, "monthly"),
+    page("/contact", 0.4, "monthly"),
+    page("/how-it-works", 0.65, "monthly"),
+    page("/editorial-policy", 0.55, "monthly"),
+    page("/guides/following-live-matches", 0.7, "monthly"),
+    page("/guides/reading-standings", 0.7, "monthly"),
     ...leaguePages,
   ];
 }

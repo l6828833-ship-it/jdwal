@@ -22,6 +22,22 @@ export const SITE_URL = (
 export const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-VQHYWT8Y4J";
 
+/** Public publisher contact shown on trust and policy pages. */
+export const CONTACT_EMAIL =
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contact@jdwal.co";
+
+/**
+ * AdSense client id, assigned by Google after/while applying (`ca-pub-...`).
+ * Empty by default: no ad script or ad request is emitted until a real id is
+ * configured. See components/adsense.tsx and app/ads.txt/route.ts.
+ */
+export const ADSENSE_CLIENT_ID =
+  process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "";
+
+/** Policy/content revision date, kept consistent across trust pages. */
+export const POLICY_LAST_UPDATED_AR = "8 سبتمبر 2026";
+
+
 export type ProviderName =
   | "selfhosted"
   | "highlightly"

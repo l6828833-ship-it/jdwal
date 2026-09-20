@@ -2,11 +2,14 @@ import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@/components/analytics";
+import { AdSense } from "@/components/adsense";
 import { BottomNav } from "@/components/bottom-nav";
+import { ConsentProvider } from "@/components/consent";
+import { SiteFooter } from "@/components/site-footer";
 import { ClockSync } from "@/components/clock-sync";
 import { TimezoneProvider } from "@/components/timezone-provider";
 import { resolveRequestTime } from "@/lib/geo-timezone";
-import { SITE_URL } from "@/lib/config";
+import { CONTACT_EMAIL, SITE_URL } from "@/lib/config";
 import { t } from "@/lib/i18n";
 
 const cairo = Cairo({
@@ -19,10 +22,9 @@ const cairo = Cairo({
 /**
  * SEO.
  *
- * Targets the two primary keywords — "jdwal" (the brand, Latin) and
- * "جدول مباريات" (Arabic: "match schedule") — in the title, description and
- * keyword set. `title.template` appends the brand to every inner page's title
- * (e.g. "الدوري الإنجليزي | جدول مباريات") so every page reinforces the terms.
+ * Targets the site's strongest Search Console queries naturally: "jdwal",
+ * "jdwel", "موقع جدول", and "jdwel مباريات اليوم". `title.template` appends
+ * the brand to inner pages without repeating the full homepage title.
  *
  * `metadataBase` makes the relative Open Graph image and canonical URLs
  * absolute. Update NEXT_PUBLIC_SITE_URL once a custom domain is live.
@@ -30,12 +32,10 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "جدول مباريات اليوم | jdwal - نتائج مباشرة",
-    template: "%s | جدول مباريات - jdwal",
+    default: t.seoTitle,
+    template: "%s | موقع جدول - jdwal",
   },
-  description:
-    "jdwal (جدول / jadwal) — جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم: " +
-    "الدوريات الكبرى ودوري أبطال أوروبا والدوريات العربية مع الترتيب والهدافين.",
+  description: t.seoMetaDescription,
   /**
    * Kept for completeness and for the crawlers that still read it (Bing has
    * historically, Yandex does). Google has ignored the keywords meta tag since
@@ -52,9 +52,9 @@ export const metadata: Metadata = {
     "jadwal",
     "jadwal live",
     "jadwal مباريات",
-    "jadwal.co",
-    "jdwel.com",
     "jdwal.co",
+    "موقع جدول",
+    "jdwel مباريات اليوم",
     "جدول",
     "جدوال",
     "جدول مباريات",
@@ -67,16 +67,15 @@ export const metadata: Metadata = {
     "الدوري الإنجليزي",
     "الدوري السعودي",
   ],
-  applicationName: "jdwal",
+  applicationName: "موقع جدول - jdwal",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    siteName: "jdwal",
+    siteName: "موقع جدول - jdwal",
     locale: "ar_AR",
     url: SITE_URL,
-    title: "جدول مباريات اليوم | jdwal - نتائج مباشرة",
-    description:
-      "جدول مباريات اليوم والغد، نتائج مباشرة، ترتيب الدوريات والهدافين.",
+    title: t.seoTitle,
+    description: t.seoMetaDescription,
     // The image that surfaces in a shared link / social preview. Its `alt`
     // carries the brand's three spellings and the core Arabic term — the tag on
     // the image the request asked for.
@@ -91,8 +90,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "جدول مباريات اليوم | jdwal",
-    description: "جدول مباريات اليوم والغد ونتائج مباشرة لكرة القدم.",
+    title: t.seoTitle,
+    description: t.seoMetaDescription,
     images: [
       {
         url: "/logo-full.png",
@@ -145,15 +144,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       {
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
-        name: "jdwal",
+        name: "موقع جدول - jdwal",
         alternateName: [
           "jadwal",
           "jdwel",
           "jdwal.co",
-          "jdwel.com",
           "جدول",
           "جدوال",
-          "جدول مباريات",
+          "موقع جدول",
+          "جدول مباريات اليوم",
         ],
         url: SITE_URL,
         description: t.seoMetaDescription,
@@ -163,9 +162,17 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       {
         "@type": "Organization",
         "@id": `${SITE_URL}/#organization`,
-        name: "jdwal",
-        alternateName: ["jadwal", "jdwel", "جدول"],
+        name: "موقع جدول - jdwal",
+        alternateName: ["جدول", "jdwal", "jdwel", "jadwal"],
         url: SITE_URL,
+        email: CONTACT_EMAIL,
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: CONTACT_EMAIL,
+          availableLanguage: ["Arabic", "English"],
+          url: `${SITE_URL}/contact`,
+        },
         logo: {
           "@type": "ImageObject",
           url: `${SITE_URL}/logo-full.png`,
@@ -179,20 +186,24 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} h-full`}>
       <body className="min-h-full bg-background text-foreground antialiased">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <ClockSync serverNowUnix={nowUnix} />
-        <TimezoneProvider serverTimezone={timezone} resolvedFromIp={resolved}>
-          {/* The bottom nav is fixed at every breakpoint, so this padding must
-              apply at every breakpoint too, or the last row hides behind it. */}
-          <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
-            {children}
-          </div>
-          <BottomNav />
-        </TimezoneProvider>
-        <Analytics />
+        <ConsentProvider>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+          <ClockSync serverNowUnix={nowUnix} />
+          <TimezoneProvider serverTimezone={timezone} resolvedFromIp={resolved}>
+            {/* The bottom nav is fixed at every breakpoint, so this padding must
+                apply at every breakpoint too, or the last row hides behind it. */}
+            <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
+              {children}
+              <SiteFooter />
+            </div>
+            <BottomNav />
+          </TimezoneProvider>
+          <Analytics />
+          <AdSense />
+        </ConsentProvider>
       </body>
     </html>
   );
