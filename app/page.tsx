@@ -7,7 +7,6 @@ import { ApiKeyNotice, LoadErrorNotice, QuotaNotice } from "@/components/notices
 import { SITE_URL } from "@/lib/config";
 import { classifyFailure, logFailure } from "@/lib/errors";
 import { isCarriedMatch } from "@/lib/grouping";
-import { NOINDEX_FOLLOW, robotsFor } from "@/lib/seo";
 import { t } from "@/lib/i18n";
 import type { MatchesPayload } from "@/lib/types";
 
@@ -19,48 +18,36 @@ import type { MatchesPayload } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 /**
- * Whether today's fixtures can be served right now.
+ * Homepage metadata is intentionally static and always indexable.
  *
- * Called from `generateMetadata` as well as the page body, which costs nothing
- * extra: `getCached` coalesces concurrent calls for the same key and then serves
- * the entry, so both readers share one upstream request.
+ * A transient sports-feed outage must never emit `noindex` for the site's most
+ * valuable URL: Google can revisit during the outage and remove the homepage
+ * from results. The page has permanent, server-rendered explanatory copy even
+ * when fixtures are unavailable, so it remains useful and indexable. Keeping
+ * this metadata independent of the feed also saves an API/cache lookup.
  */
-async function fixturesAvailable(
-  today: string,
-  timezone: string,
-): Promise<boolean> {
-  try {
-    const { matches } = await getMatchesByDate(today, today, false, timezone);
-    // Counted after the carried-competition filter: a day holding nothing but
-    // hidden competitions renders an empty page, and an empty page must not
-    // declare itself indexable.
-    return matches.some(isCarriedMatch);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * A render with no fixtures must not be indexed — see lib/seo.ts for the policy
- * and why it exists. This is the URL it was written for: the homepage is the
- * site's most valuable page, and it is the one whose Google result ended up
- * reading "تعذّر تحميل البيانات".
- */
-export async function generateMetadata(): Promise<Metadata> {
-  if (!hasApiKey()) return { robots: NOINDEX_FOLLOW };
-
-  const { today, timezone } = await resolveRequestTime();
-
+export function generateMetadata(): Metadata {
   return {
+    title: { absolute: t.seoTitle },
+    description: t.seoMetaDescription,
     alternates: { canonical: "/" },
-    // Same arguments the page uses, so both share one cached lookup.
-    robots: robotsFor(await fixturesAvailable(today, timezone)),
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true },
+    },
   };
 }
 
 export default async function HomePage() {
   if (!hasApiKey()) {
-    return <ApiKeyNotice />;
+    return (
+      <>
+        <ApiKeyNotice />
+        <HomeIntro matchCount={0} date="" />
+        <HomeJsonLd />
+      </>
+    );
   }
 
   /**
@@ -95,10 +82,28 @@ export default async function HomePage() {
       nowUnix,
     };
   } catch (error) {
-    if (classifyFailure(error) === "quota") return <QuotaNotice />;
-    // The detail goes to the server log; the page gets a sanitised message.
-    logFailure("home/matches", error);
-    return <LoadErrorNotice error={error} />;
+    const notice =
+      classifyFailure(error) === "quota" ? (
+        <QuotaNotice />
+      ) : (
+        <LoadErrorNotice error={error} />
+      );
+
+    if (classifyFailure(error) !== "quota") {
+      // The detail goes to the server log; the page gets a sanitised message.
+      logFailure("home/matches", error);
+    }
+
+    // Keep permanent SEO copy and WebPage schema in the document even while
+    // the live feed is unavailable. A temporary API outage must not turn the
+    // homepage into a thin error-only document for visitors or crawlers.
+    return (
+      <>
+        {notice}
+        <HomeIntro matchCount={0} date={today} />
+        <HomeJsonLd />
+      </>
+    );
   }
 
   return (
@@ -140,6 +145,13 @@ function HomeIntro({ matchCount, date }: { matchCount: number; date: string }) {
         <SeoLink href="/leagues">{t.seoLinkLeagues}</SeoLink>
         <SeoLink href="/scorers">{t.seoLinkScorers}</SeoLink>
         <SeoLink href="/players">{t.seoLinkPlayers}</SeoLink>
+        <SeoLink href="/guides/following-live-matches">
+          دليل المباريات المباشرة
+        </SeoLink>
+        <SeoLink href="/guides/reading-standings">
+          شرح جدول الترتيب
+        </SeoLink>
+        <SeoLink href="/about">من نحن</SeoLink>
       </nav>
     </section>
   );
@@ -178,7 +190,7 @@ function HomeJsonLd() {
     "@type": "WebPage",
     "@id": `${SITE_URL}/#webpage`,
     url: SITE_URL,
-    name: "جدول مباريات اليوم - jdwal",
+    name: t.seoTitle,
     description: t.seoMetaDescription,
     inLanguage: "ar",
     isPartOf: { "@id": `${SITE_URL}/#website` },
@@ -201,6 +213,21 @@ function HomeJsonLd() {
         "@type": "SiteNavigationElement",
         name: t.playersTitle,
         url: `${SITE_URL}/players`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "من نحن",
+        url: `${SITE_URL}/about`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "كيف يعمل جدول",
+        url: `${SITE_URL}/how-it-works`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "دليل متابعة المباريات المباشرة",
+        url: `${SITE_URL}/guides/following-live-matches`,
       },
     ],
   };

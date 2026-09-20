@@ -14,10 +14,10 @@
  * response carries `meta.requests_used` / `meta.requests_limit`, and that is
  * what the guard reads.
  *
- * Scope note: this cache is per server instance and in-memory. That is correct
- * for a single node or a long-lived container. On multi-instance serverless the
- * effective upstream rate multiplies by the instance count — move the cache and
- * the counter to Redis (or similar) before scaling out.
+ * Scope note: the cache is per server instance. A local disk snapshot survives
+ * development restarts; on multi-instance serverless the effective upstream
+ * rate can still multiply by the instance count — move cache and counter state
+ * to Redis (or similar) before scaling out.
  */
 
 import * as fs from "node:fs";
