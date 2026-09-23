@@ -153,45 +153,6 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     apiFootballId: 1,
     aliases: ["fifa world cup", "world cup"],
   },
-  /**
-   * Gulf Cup ("خليجي"), pinned high on purpose.
-   *
-   * It is a national-team tournament, so it belongs with the World Cup rather
-   * than among the club competitions, and for this site's audience — Saudi,
-   * Emirati, Qatari, Kuwaiti, Bahraini, Omani and Iraqi readers — it is one of
-   * the most-followed events on the calendar while it runs. It is biennial and
-   * lasts about two weeks, so this position only occupies the top of the page
-   * during the tournament; outside it the competition has no fixtures and the
-   * group simply does not render.
-   *
-   * `851557` is the id the ACTIVE backend serves this tournament under — verified
-   * against the live competition page, which rendered "كأس الخليج" for it. It sits
-   * in the 800000+ range the backend mints for competitions it has no upstream
-   * mapping for, and those ids are stable, so it is safe to pin. It is recorded
-   * in `ids` too, so the non-selfhosted fallbacks match it as well.
-   *
-   * The Arabic aliases still matter and stay: they cover a source that numbers
-   * this tournament differently, and the active source is asked for Arabic, so an
-   * English-only list would never fire. "خليجي" is included because the
-   * tournament is popularly named that way with an edition number ("خليجي 26").
-   * Youth and women's editions cannot borrow this rank — `YOUTH_OR_SECONDARY`
-   * rejects "للشباب", "شباب" and "الناشئين" before alias matching runs.
-   */
-  {
-    key: "gulf-cup",
-    slug: "gulf-cup",
-    ar: "كأس الخليج",
-    ids: [851557],
-    highlightlyId: 0,
-    apiFootballId: 851557,
-    aliases: [
-      "كأس الخليج",
-      "خليجي",
-      "arabian gulf cup",
-      "gulf cup of nations",
-      "gulf cup",
-    ],
-  },
 
   // --- 1. European: the cups first, then the big five leagues -------------
   {
@@ -307,7 +268,7 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     aliases: ["ligue 1"],
   },
 
-  // --- 2. Arab: Saudi first, then the rest --------------------------------
+  // --- 2. Arab: Saudi first, then Gulf Cup, then the rest ----------------
   {
     key: "saudi-pro-league",
     slug: "saudi-pro-league",
@@ -316,6 +277,31 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     highlightlyId: 262041,
     apiFootballId: 307,
     aliases: ["saudi pro league", "saudi professional league"],
+  },
+  /**
+   * Gulf Cup — pinned here, after the Saudi Pro League and before the other
+   * Arab country leagues. It is a Gulf national-team tournament (biennial,
+   * ~2 weeks), so it belongs in the Arab section rather than above the European
+   * competitions. `851557` is the active backend's stable id for it, verified
+   * against the live competition page. Arabic aliases cover sources that number
+   * it differently; "خليجي" matches "خليجي 26" and similar edition names.
+   * Youth and women's editions cannot inherit this rank — `YOUTH_OR_SECONDARY`
+   * rejects "للشباب", "شباب" and "الناشئين" before alias matching runs.
+   */
+  {
+    key: "gulf-cup",
+    slug: "gulf-cup",
+    ar: "كأس الخليج",
+    ids: [851557],
+    highlightlyId: 0,
+    apiFootballId: 851557,
+    aliases: [
+      "كأس الخليج",
+      "خليجي",
+      "arabian gulf cup",
+      "gulf cup of nations",
+      "gulf cup",
+    ],
   },
   {
     key: "egypt",
