@@ -128,6 +128,12 @@ export async function generateMetadata(
   } catch {
     return {
       title: pinnedName ?? t.standings,
+      // The canonical MUST be restated here. Without it this branch inherits the
+      // layout's root canonical, so a league page whose standings call merely
+      // failed declared itself a duplicate of the homepage — while still saying
+      // `index, follow`. A transient backend error is not a reason to hand Google
+      // the wrong canonical for a real competition URL.
+      alternates: { canonical: leagueHref(leagueId) },
       robots: pinned ? robotsFor(Boolean(pinnedName)) : NOINDEX_FOLLOW,
     };
   }

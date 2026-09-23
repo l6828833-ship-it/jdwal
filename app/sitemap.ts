@@ -40,13 +40,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
    * decays with position but never below 0.4, since even the last entry is a
    * real competition page and not filler.
    */
-  const leaguePages = POPULAR_LEAGUES.map((league, index) =>
-    page(
-      `/league/${league.slug}`,
-      Math.max(0.4, 0.75 - index * 0.01),
-      "daily",
-    ),
-  );
+  const leaguePages = POPULAR_LEAGUES
+    // Only competitions with an asserted provider id have a resolvable page.
+    // A pinned entry without one (see the Gulf Cup in lib/config.ts) still ranks
+    // by name on the fixture list, but has no URL to advertise yet — listing it
+    // would put a 404 in the sitemap.
+    .filter((league) => league.apiFootballId > 0)
+    .map((league, index) =>
+      page(
+        `/league/${league.slug}`,
+        Math.max(0.4, 0.75 - index * 0.01),
+        "daily",
+      ),
+    );
 
   return [
     // The home fixture list turns over through the day; the rest change as
