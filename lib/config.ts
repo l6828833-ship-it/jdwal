@@ -153,6 +153,21 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     apiFootballId: 1,
     aliases: ["fifa world cup", "world cup"],
   },
+  /**
+   * UEFA Nations League — European national-team competition, runs every
+   * two years in the autumn. ID 852142 verified from the live fixture feed.
+   * Placed right after the World Cup: it is a major international tournament
+   * and sits naturally here before the club competitions.
+   */
+  {
+    key: "uefa-nations-league",
+    slug: "uefa-nations-league",
+    ar: "دوري الأمم الأوروبية",
+    ids: [852142],
+    highlightlyId: 0,
+    apiFootballId: 852142,
+    aliases: ["uefa nations league", "nations league"],
+  },
 
   // --- 1. European: the cups first, then the big five leagues -------------
   {
@@ -383,6 +398,21 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     highlightlyId: 0,
     apiFootballId: 6,
     aliases: ["africa cup of nations", "afcon"],
+  },
+  /**
+   * AFCON qualifiers — ID 862144 verified from the live fixture feed.
+   * Placed directly after the AFCON tournament itself: qualifiers are its
+   * feeder round and follow naturally. The Arabic name matches the backend's
+   * own Arabic string for the competition.
+   */
+  {
+    key: "afcon-qualifiers",
+    slug: "afcon-qualifiers",
+    ar: "تصفيات كأس أمم إفريقيا",
+    ids: [862144],
+    highlightlyId: 0,
+    apiFootballId: 862144,
+    aliases: ["afcon qualifiers", "africa cup of nations qualifying", "تصفيات أمم إفريقيا"],
   },
 
   // --- 3. A widely-followed extra, above the long alphabetical tail -------
