@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: t.seoTitle,
-    template: "%s | موقع جدول - jdwal",
+    template: "%s | جدول مباريات - Jdwal",
   },
   description: t.seoMetaDescription,
   /**

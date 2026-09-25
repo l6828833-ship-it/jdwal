@@ -219,7 +219,7 @@ export const t = {
    * Homepage search copy, based on the site's real Search Console queries:
    * jdwal, jdwel, موقع جدول, and jdwel مباريات اليوم.
    */
-  seoTitle: "موقع جدول مباريات اليوم ونتائج مباشرة | jdwal - jdwel",
+  seoTitle: "جدول مباريات اليوم | مواعيد المباريات والنتائج المباشرة - Jdwal",
   /** The homepage h1. Short enough for the header bar, and the primary term. */
   seoHeadingShort: "جدول مباريات اليوم",
   seoHeading: "موقع جدول مباريات اليوم ونتائج مباشرة",
@@ -246,8 +246,8 @@ export const t = {
   seoLinkPlayers: "بحث اللاعبين",
   /** Shared by the page description and the WebPage structured data. */
   seoMetaDescription:
-    "موقع جدول jdwal، ويُكتب أيضاً jdwel، لمتابعة جدول مباريات اليوم والغد " +
-    "والنتائج المباشرة وترتيب الدوريات والهدافين بتوقيت بلدك.",
+    "تابع جدول مباريات اليوم ومواعيد أهم مباريات كرة القدم مع النتائج المباشرة، " +
+    "القنوات الناقلة، التشكيلات والإحصائيات. جميع المباريات في مكان واحد على Jdwal.",
 } as const;
 
 /** Arabic names for leagues outside the pinned popular list. */
