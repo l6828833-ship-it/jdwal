@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@/components/analytics";
-import { AdSense } from "@/components/adsense";
+import { AdSense, AdSenseVerification } from "@/components/adsense";
 import { BottomNav } from "@/components/bottom-nav";
 import { ConsentProvider } from "@/components/consent";
 import { SiteFooter } from "@/components/site-footer";
@@ -202,6 +202,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <BottomNav />
           </TimezoneProvider>
           <Analytics />
+          <AdSenseVerification />
           <AdSense />
         </ConsentProvider>
       </body>
