@@ -125,6 +125,12 @@ export const t = {
   standingsComputedNote:
     "يُحسب هذا الجدول من نتائج مباريات دور المجموعات فقط، ولا يشمل الأدوار التمهيدية. الفرق التي لم تلعب بعد تظهر بصفر.",
   standingsNotStarted: "لم تبدأ مباريات دور المجموعات بعد",
+  /**
+   * Fallback header for a group whose source table carries no name — used when
+   * a qualifier-style competition splits into several tables but labels none of
+   * them. "المجموعة 1", "المجموعة 2", …
+   */
+  standingsGroupPrefix: "المجموعة",
   standingsFixturesPending:
     "لم يتم إعلان مباريات دور المجموعات بعد. سيظهر الجدول تلقائياً عند توفر المباريات، ولا تُحتسب الأدوار التمهيدية فيه.",
   colPosition: "#",

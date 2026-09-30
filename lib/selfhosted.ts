@@ -44,7 +44,7 @@ import {
   resetBudget,
 } from "./cache";
 import { countryCode, isNonNationalRegion } from "./countries";
-import { leagueNameAr, stageAr, teamNameAr } from "./i18n";
+import { leagueNameAr, stageAr, t, teamNameAr } from "./i18n";
 import { resolveBroadcast } from "./broadcast";
 import { compareMatches } from "./grouping";
 import { leaguePopularity } from "./config";
@@ -1165,17 +1165,31 @@ export async function getLeagueStandings(
   /**
    * Flatten the per-group tables, keeping each row's group label.
    *
-   * The label is what makes a cup table readable: without it the Champions
-   * League league phase and its groups collapse into one ranking where position
-   * 1 appears several times. Every previous provider discarded it.
+   * The label is what makes a multi-table competition readable: without it the
+   * groups collapse into one list where "1" appears once per group and the
+   * ranking is nonsense (observed on the AFCON qualifiers page).
+   *
+   * The label comes from `row.group` when the source populates it (the usual
+   * case for a named league phase or "Group A"). But qualifier-style
+   * competitions frequently leave `row.group` EMPTY and encode the split only
+   * in the standings ARRAY structure — one sub-array per group. So when there
+   * is more than one sub-array and the rows carry no label, the sub-array index
+   * is used to synthesise one ("المجموعة 1", "المجموعة 2", …). A single
+   * sub-array stays unlabelled, so an ordinary league table is never split.
    */
+  const tables = raw.standings ?? [];
+  const multiTable = tables.length > 1;
   const rows: StandingRow[] = [];
-  for (const group of raw.standings ?? []) {
+  tables.forEach((group, groupIndex) => {
     for (const row of group ?? []) {
+      const sourceLabel = row.group?.trim() || null;
+      const group_ =
+        sourceLabel ??
+        (multiTable ? `${t.standingsGroupPrefix} ${groupIndex + 1}` : null);
       rows.push({
         position: row.rank ?? 0,
         team: normalizeTeam(row.team, leagueCountry),
-        group: row.group?.trim() || null,
+        group: group_,
         zoneLabel: row.description?.trim() || null,
         zone: classifyZone(row.description),
         played: num(row.all?.played),
@@ -1190,7 +1204,7 @@ export async function getLeagueStandings(
         points: num(row.points),
       });
     }
-  }
+  });
 
   return {
     standings: {
