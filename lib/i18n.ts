@@ -131,6 +131,8 @@ export const t = {
    * them. "المجموعة 1", "المجموعة 2", …
    */
   standingsGroupPrefix: "المجموعة",
+  /** Group header for teams that played only in a preliminary round. */
+  standingsPreliminaryGroup: "الدور التمهيدي",
   standingsFixturesPending:
     "لم يتم إعلان مباريات دور المجموعات بعد. سيظهر الجدول تلقائياً عند توفر المباريات، ولا تُحتسب الأدوار التمهيدية فيه.",
   colPosition: "#",

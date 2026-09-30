@@ -1212,7 +1212,10 @@ export async function getLeagueStandings(
       seasonYear: raw.league?.season ?? seasonYear,
       // A table the app cannot render honestly is dropped, so the page shows
       // fixtures only instead of a misleading ranking. See `isRenderableTable`.
-      rows: isRenderableTable(rows) ? rows : [],
+      rows: (() => {
+        const repaired = repairPartialGroups(rows);
+        return isRenderableTable(repaired) ? repaired : [];
+      })(),
       // API-Football's own table, which already accounts for point deductions
       // and keeps qualifying rounds in separate groups. No derivation needed.
       source: "provider",
@@ -1224,6 +1227,31 @@ export async function getLeagueStandings(
       cached.error,
     ),
   };
+}
+
+/**
+ * Make a partially grouped table fully grouped, so it renders as group tables.
+ *
+ * AFCON qualifiers arrive with every group-stage row labelled ("المجموعة أ" …)
+ * plus a few rows with NO label — teams knocked out in the preliminary round,
+ * ranked 39–42 with 0 games in the group stage. Those few unlabelled rows were
+ * enough to stop the renderer splitting the table (it needs every row
+ * labelled). The labelled rows carry the backend's own accurate stats, so they
+ * are kept as-is:
+ *
+ *   • unlabelled rows that never played are dropped — they are not part of the
+ *     group stage at all;
+ *   • unlabelled rows that DID play are kept under a "preliminary round" group
+ *     rather than silently discarded.
+ */
+function repairPartialGroups(rows: StandingRow[]): StandingRow[] {
+  const grouped = rows.filter((r) => r.group);
+  if (grouped.length === 0 || grouped.length === rows.length) return rows;
+  const ungrouped = rows.filter((r) => !r.group);
+  if (ungrouped.every((r) => (r.played ?? 0) === 0)) return grouped;
+  return rows.map((r) =>
+    r.group ? r : { ...r, group: t.standingsPreliminaryGroup },
+  );
 }
 
 /**
