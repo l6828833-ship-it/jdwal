@@ -1244,19 +1244,30 @@ export async function getLeagueStandings(
  */
 function isRenderableTable(rows: StandingRow[]): boolean {
   if (rows.length === 0) return false;
-  // Grouped tables are split correctly downstream; trust them.
-  if (rows.some((r) => r.group)) return true;
 
+  const withGroup = rows.filter((r) => r.group).length;
+
+  // Fully grouped (every row labelled): a real multi-group table. The renderer
+  // splits it into one sub-table per group, so it is trustworthy.
+  if (withGroup === rows.length) return true;
+
+  // PARTIALLY grouped is the AFCON-qualifiers shape: a handful of preliminary
+  // rows with no group (ranked 39,40,41,42) prepended to the real groups. It
+  // cannot be shown as one honest ranking and the renderer cannot split it
+  // (it needs every row labelled), so it is suppressed — the page falls back to
+  // fixtures only. This is the case the user reported.
+  if (withGroup > 0) return false;
+
+  // Fully ungrouped: only trustworthy as a clean 1..N run with no repeats. A
+  // duplicated position, or a run that does not start at 1, is a flattened /
+  // sliced multi-group list, not a league table.
   const positions = rows.map((r) => r.position);
   const seen = new Set<number>();
   for (const p of positions) {
-    if (seen.has(p)) return false; // a repeated rank => flattened groups
+    if (seen.has(p)) return false;
     seen.add(p);
   }
-  // A genuine single league table is numbered from 1. A run that starts far
-  // from 1 (e.g. at 39) is a slice of a larger merged list, not a table.
-  const min = Math.min(...positions);
-  return min <= 1;
+  return Math.min(...positions) <= 1;
 }
 
 // ---------------------------------------------------------------------------
