@@ -1210,7 +1210,9 @@ export async function getLeagueStandings(
     standings: {
       league,
       seasonYear: raw.league?.season ?? seasonYear,
-      rows,
+      // A table the app cannot render honestly is dropped, so the page shows
+      // fixtures only instead of a misleading ranking. See `isRenderableTable`.
+      rows: isRenderableTable(rows) ? rows : [],
       // API-Football's own table, which already accounts for point deductions
       // and keeps qualifying rounds in separate groups. No derivation needed.
       source: "provider",
@@ -1222,6 +1224,39 @@ export async function getLeagueStandings(
       cached.error,
     ),
   };
+}
+
+/**
+ * Can these rows be shown as an honest standings table?
+ *
+ * Some competitions (e.g. AFCON qualifiers) come back as ONE flat array that
+ * silently merges several groups: the backend drops the per-group tables and
+ * the `group`/`description` labels, leaving only a global `rank` that runs
+ * 39, 40, 41, 42, 1, 2, 3, 4, 1, 2, 3, 4 … There is no signal left to split it
+ * back into groups, so rendering it as a single league table shows repeated
+ * "#1"s and a nonsensical order (reported live on تصفيات كأس أمم إفريقيا).
+ *
+ * When the table is grouped (rows carry a `group` label) it renders fine and is
+ * always allowed. Otherwise a single ungrouped table is only trustworthy when
+ * its positions form a clean 1..N run with no repeats — the shape of a real
+ * league table. A duplicated position is the fingerprint of flattened groups,
+ * and such a table is suppressed so the page falls back to fixtures only.
+ */
+function isRenderableTable(rows: StandingRow[]): boolean {
+  if (rows.length === 0) return false;
+  // Grouped tables are split correctly downstream; trust them.
+  if (rows.some((r) => r.group)) return true;
+
+  const positions = rows.map((r) => r.position);
+  const seen = new Set<number>();
+  for (const p of positions) {
+    if (seen.has(p)) return false; // a repeated rank => flattened groups
+    seen.add(p);
+  }
+  // A genuine single league table is numbered from 1. A run that starts far
+  // from 1 (e.g. at 39) is a slice of a larger merged list, not a table.
+  const min = Math.min(...positions);
+  return min <= 1;
 }
 
 // ---------------------------------------------------------------------------

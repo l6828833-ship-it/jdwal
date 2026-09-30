@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing to back up. The app holds no account, no settings and no user content —
+  every screen is rebuilt from the public feed on launch, so restoring a backup
+  would only restore a stale cache.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="database" path="." />
+</full-backup-content>

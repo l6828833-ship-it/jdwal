@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      A bare splash-compatible theme. The real colours come from Compose's
+      MaterialTheme; this exists so the window background matches the app before
+      the first frame, instead of flashing white on a dark UI.
+    -->
+    <style name="Theme.FootballLive" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

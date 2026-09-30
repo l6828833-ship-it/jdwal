@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="window_background">#0D0D0D</color>
+    <!-- Matches the flat background baked into the launcher artwork, so the
+         opaque foreground layer has no visible edge during launcher parallax. -->
+    <color name="ic_launcher_background">#030202</color>
+    <color name="accent">#2E7DF6</color>
+</resources>

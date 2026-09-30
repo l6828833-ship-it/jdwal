@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Arabic translation. `app_name` is deliberately absent so the launcher label
+  stays "Football Live" in every locale — it is the product name, not copy.
+-->
+<resources>
+    <string name="tab_matches">المباريات</string>
+    <string name="tab_scorers">الهدافون</string>
+    <string name="tab_leagues">الدوريات</string>
+    <string name="title_match">تفاصيل المباراة</string>
+    <string name="action_back">رجوع</string>
+    <string name="action_retry">إعادة المحاولة</string>
+
+    <string name="date_today">اليوم</string>
+    <string name="date_yesterday">أمس</string>
+    <string name="date_tomorrow">غداً</string>
+
+    <string name="status_live">مباشر</string>
+    <string name="status_half_time">بين الشوطين</string>
+    <string name="status_finished">انتهت</string>
+    <string name="status_postponed">مؤجلة</string>
+    <string name="status_cancelled">ملغاة</string>
+
+    <string name="section_events">أحداث المباراة</string>
+    <string name="section_info">معلومات المباراة</string>
+    <string name="info_competition">المسابقة</string>
+    <string name="info_round">الدور</string>
+    <string name="info_kickoff">توقيت البداية</string>
+    <string name="info_venue">الملعب</string>
+    <string name="info_referee">الحكم</string>
+    <string name="info_channel">القناة الناقلة</string>
+
+    <string name="event_assist">صناعة</string>
+    <string name="event_penalty">ركلة جزاء</string>
+    <string name="event_own_goal">هدف عكسي</string>
+    <string name="event_yellow">بطاقة صفراء</string>
+    <string name="event_red">بطاقة حمراء</string>
+    <string name="event_second_yellow">طرد بعد بطاقتين</string>
+    <string name="event_missed_penalty">ركلة جزاء مهدرة</string>
+    <string name="event_disallowed">هدف ملغى</string>
+
+    <string name="col_team">الفريق</string>
+    <string name="col_played">لعب</string>
+    <string name="col_diff">+/-</string>
+    <string name="col_points">نقاط</string>
+    <string name="col_player">اللاعب</string>
+    <string name="col_goals">أهداف</string>
+    <string name="col_assists">صناعة</string>
+
+    <string name="empty_no_matches">لا توجد مباريات في هذا اليوم</string>
+    <string name="empty_no_standings">لا يتوفر جدول ترتيب لهذه المسابقة</string>
+    <string name="empty_no_scorers">لا يتوفر ترتيب هدافين لهذه المسابقة</string>
+
+    <string name="error_load_failed">تعذّر تحميل البيانات</string>
+    <string name="error_load_hint">تحقّق من اتصالك بالإنترنت ثم أعد المحاولة.</string>
+</resources>

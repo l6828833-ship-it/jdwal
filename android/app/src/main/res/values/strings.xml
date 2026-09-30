@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  English is the DEFAULT locale.
+
+  `values/` is the fallback for every device whose language this app has no
+  resources for, so it holds the language with the widest reach. Arabic lives in
+  `values-ar/` and is served to Arabic devices, which is the same coverage as
+  before with a better default for everyone else.
+-->
+<resources>
+    <string name="app_name">Football Live</string>
+
+    <string name="tab_matches">Matches</string>
+    <string name="tab_scorers">Top scorers</string>
+    <string name="tab_leagues">Leagues</string>
+    <string name="title_match">Match details</string>
+    <string name="action_back">Back</string>
+    <string name="action_retry">Try again</string>
+
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+    <string name="date_tomorrow">Tomorrow</string>
+
+    <string name="status_live">Live</string>
+    <string name="status_half_time">Half time</string>
+    <string name="status_finished">Finished</string>
+    <string name="status_postponed">Postponed</string>
+    <string name="status_cancelled">Cancelled</string>
+
+    <string name="section_events">Match events</string>
+    <string name="section_info">Match info</string>
+    <string name="info_competition">Competition</string>
+    <string name="info_round">Round</string>
+    <string name="info_kickoff">Kick-off</string>
+    <string name="info_venue">Venue</string>
+    <string name="info_referee">Referee</string>
+    <string name="info_channel">TV channel</string>
+
+    <string name="event_assist">Assist</string>
+    <string name="event_penalty">Penalty</string>
+    <string name="event_own_goal">Own goal</string>
+    <string name="event_yellow">Yellow card</string>
+    <string name="event_red">Red card</string>
+    <string name="event_second_yellow">Second yellow</string>
+    <string name="event_missed_penalty">Missed penalty</string>
+    <string name="event_disallowed">Goal disallowed</string>
+
+    <string name="col_team">Team</string>
+    <string name="col_played">P</string>
+    <string name="col_diff">GD</string>
+    <string name="col_points">Pts</string>
+    <string name="col_player">Player</string>
+    <string name="col_goals">G</string>
+    <string name="col_assists">A</string>
+
+    <string name="empty_no_matches">No matches on this day</string>
+    <string name="empty_no_standings">No table available for this competition</string>
+    <string name="empty_no_scorers">No scorer list available for this competition</string>
+
+    <string name="error_load_failed">Couldn\'t load data</string>
+    <string name="error_load_hint">Check your connection and try again.</string>
+</resources>
