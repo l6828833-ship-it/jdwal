@@ -108,6 +108,18 @@ export interface PopularLeague {
    * because bare names collide across countries.
    */
   aliases: string[];
+  /**
+   * Name match that runs BEFORE the youth/women's/qualifier exclusions, for a
+   * curated competition whose name necessarily contains one of those markers
+   * (AFCON U20 contains "تحت 20"). Used when the backend gives it no stable id.
+   */
+  namePattern?: RegExp;
+  /**
+   * Only fixtures involving a marquee nation are shown (see
+   * lib/marquee-nations.ts). For international friendlies, where most of the
+   * ~50 games on a window day are between small nations.
+   */
+  marqueeOnly?: boolean;
 }
 
 /**
@@ -413,6 +425,41 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     highlightlyId: 0,
     apiFootballId: 862144,
     aliases: ["afcon qualifiers", "africa cup of nations qualifying", "تصفيات أمم إفريقيا"],
+  },
+  /**
+   * AFCON U20. The backend serves it on a derived id that has not been seen in
+   * the feed yet, so it is matched by name — and by `namePattern`, because its
+   * name contains "تحت 20" / "U20", which the youth filters would otherwise
+   * reject. Women's editions are excluded inside the pattern.
+   */
+  {
+    key: "afcon-u20",
+    slug: "afcon-u20",
+    ar: "كأس أمم إفريقيا تحت 20",
+    ids: [],
+    highlightlyId: 0,
+    apiFootballId: 0,
+    aliases: [],
+    namePattern:
+      /^(?!.*(سيدات|نساء|women))(?=.*(تحت\s*(ال)?-?\s*20|\bu-?20\b))(?=.*(كأس\s*(أمم|الأمم)\s*(إفريقيا|أفريقيا|الأفريقية|الإفريقية)|africa(n)?\s*(cup of nations|u-?20 championship)|\bafcon\b))/i,
+  },
+
+  // --- 2b. International friendlies, marquee nations only -----------------
+  //
+  // Below the Arab leagues and the AFCON family, above the long tail. Only
+  // fixtures with a big European, an Arab, or a Latin American nation are
+  // shown — see `marqueeOnly` and lib/marquee-nations.ts. 866215 is the
+  // backend's id for "المباريات الودية الدولية", verified from the live feed.
+  // Club friendlies (809497) and youth/women's friendlies stay hidden.
+  {
+    key: "international-friendlies",
+    slug: "international-friendlies",
+    ar: "المباريات الودية الدولية",
+    ids: [866215],
+    highlightlyId: 0,
+    apiFootballId: 866215,
+    aliases: [],
+    marqueeOnly: true,
   },
 
   // --- 3. A widely-followed extra, above the long alphabetical tail -------
@@ -828,7 +875,17 @@ const NOT_CARRIED = new RegExp(
  */
 export function isCarriedLeague(leagueId: number, leagueName: string): boolean {
   if (isPinnedLeague(leagueId)) return true;
-  return !NOT_CARRIED.test(normalize(leagueName));
+  const name = normalize(leagueName);
+  if (patternRank(name) !== null) return true;
+  return !NOT_CARRIED.test(name);
+}
+
+/** Rank of the first entry whose `namePattern` matches, else null. */
+function patternRank(normalizedName: string): number | null {
+  for (let i = 0; i < POPULAR_LEAGUES.length; i++) {
+    if (POPULAR_LEAGUES[i].namePattern?.test(normalizedName)) return i;
+  }
+  return null;
 }
 
 export function isPinnedLeague(leagueId: number): boolean {
@@ -909,6 +966,13 @@ export function leaguePopularity(
     if (matchesLeagueId(POPULAR_LEAGUES[i], leagueId)) {
       return { rank: i, entry: POPULAR_LEAGUES[i] };
     }
+  }
+
+  // Curated competitions whose names contain a youth marker (AFCON U20) are
+  // matched explicitly before the youth exclusion below.
+  const byPattern = patternRank(name);
+  if (byPattern !== null) {
+    return { rank: byPattern, entry: POPULAR_LEAGUES[byPattern] };
   }
 
   // A youth / women's / qualifying edition must not borrow a senior

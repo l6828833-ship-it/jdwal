@@ -7,7 +7,8 @@
  * data, which costs zero extra upstream requests.
  */
 
-import { isCarriedLeague, leaguePopularity } from "./config";
+import { isCarriedLeague, leaguePopularity, pinnedLeague } from "./config";
+import { isMarqueeFriendly } from "./marquee-nations";
 import type { LeagueRef, Match } from "./types";
 
 export interface LeagueGroup {
@@ -39,7 +40,7 @@ export function groupByLeague(matches: Match[]): LeagueGroup[] {
      * come through this function. Filtering in the provider would have meant the
      * counts in the filter tabs disagreeing with the list underneath them.
      */
-    if (!isCarriedLeague(match.league.id, match.league.nameOriginal)) continue;
+    if (!isCarriedMatch(match)) continue;
 
     let group = groups.get(match.league.id);
     if (!group) {
@@ -82,5 +83,11 @@ export function isPopularMatch(match: Match): boolean {
  * with the list rendered under it.
  */
 export function isCarriedMatch(match: Match): boolean {
-  return isCarriedLeague(match.league.id, match.league.nameOriginal);
+  if (!isCarriedLeague(match.league.id, match.league.nameOriginal)) return false;
+  // International friendlies: only games with a big European, Arab or Latin
+  // American nation. The rest of the window-day long tail stays hidden.
+  if (pinnedLeague(match.league.id)?.marqueeOnly) {
+    return isMarqueeFriendly(match.home, match.away);
+  }
+  return true;
 }

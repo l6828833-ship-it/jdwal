@@ -49,6 +49,8 @@ function buildLeagueList(fromProvider: LeagueSummary[]): LeagueSummary[] {
   // Seed with every pinned league, whether or not it appears in today's feed.
   const map = new Map<number, LeagueSummary>();
   POPULAR_LEAGUES.forEach((p, rank) => {
+    // An entry matched by name only (apiFootballId 0) has no page to link to.
+    if (p.apiFootballId <= 0) return;
     map.set(p.apiFootballId, {
       id: p.apiFootballId,
       name: p.ar,

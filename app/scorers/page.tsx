@@ -45,7 +45,7 @@ async function resolveSelection(
   const tabs: LeagueSummary[] =
     popular.length > 0
       ? popular
-      : POPULAR_LEAGUES.map((p) => ({
+      : POPULAR_LEAGUES.filter((p) => p.apiFootballId > 0).map((p) => ({
           id: p.apiFootballId,
           name: p.ar,
           nameOriginal: p.aliases[0] ?? p.ar,
