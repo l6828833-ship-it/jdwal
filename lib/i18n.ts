@@ -753,6 +753,15 @@ function stripClubNoise(value: string): string {
     .trim();
 }
 
+/**
+ * Arabic names for backend competitions whose source name is ambiguous on its
+ * own. Keyed by the backend's stable (derived) id, since the name alone cannot
+ * tell them apart from a bigger league with the same name.
+ */
+const LEAGUE_NAME_BY_ID: Record<number, string> = {
+  810917: "الدوري السنغالي", // named just "Ligue 1" upstream
+};
+
 /** Arabic league name, falling back to the provider's name. */
 export function leagueNameAr(leagueId: number, original: string): string {
   // Matched in the ACTIVE provider's numbering only — see `matchesLeagueId`. The
@@ -761,6 +770,8 @@ export function leagueNameAr(leagueId: number, original: string): string {
   for (const league of POPULAR_LEAGUES) {
     if (matchesLeagueId(league, leagueId)) return league.ar;
   }
+  const byId = LEAGUE_NAME_BY_ID[leagueId];
+  if (byId) return byId;
 
   const name = normalize(original);
 

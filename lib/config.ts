@@ -292,7 +292,12 @@ export const POPULAR_LEAGUES: PopularLeague[] = [
     ids: [52695, 61],
     highlightlyId: 52695,
     apiFootballId: 61,
-    aliases: ["ligue 1"],
+    /**
+     * Deliberately NOT a bare "ligue 1": Senegal's top flight (backend id
+     * 810917) is also named just "Ligue 1", and the bare alias gave it France's
+     * name and rank. France is matched by id 61, so the qualifier costs nothing.
+     */
+    aliases: ["french ligue 1"],
   },
 
   // --- 2. Arab: Saudi first, then Gulf Cup, then the rest ----------------
