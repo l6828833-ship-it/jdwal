@@ -11,7 +11,7 @@ export function MatchPromo() {
     <aside aria-label="إعلان" className="flex flex-col items-center gap-1">
       <span className="text-[0.65rem] text-muted-dim">إعلان</span>
       <a
-        href="https://www.strong8kiptv.co/ar"
+        href="https://linkly.link/2uinK"
         target="_blank"
         rel="sponsored noopener noreferrer"
         className="block w-full max-w-sm overflow-hidden rounded-xl border border-border transition-opacity hover:opacity-90"
