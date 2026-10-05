@@ -5,6 +5,7 @@ import { NavLink } from "@/components/nav-link";
 import { useRouter } from "next/navigation";
 import { Crest, Flag } from "./crest";
 import { LiveBadge } from "./live-badge";
+import { MatchPromo } from "./match-promo";
 import { MatchStatsPanel } from "./match-stats";
 import { useTimezone } from "./timezone-provider";
 import { useMinuteAnchor } from "./use-minute-anchor";
@@ -230,6 +231,8 @@ export function MatchDetailView({
           homeName={match.home.name}
           awayName={match.away.name}
         />
+
+        <MatchPromo />
 
         {hasStats && (
           <div role="tablist" className="flex items-center gap-1">
