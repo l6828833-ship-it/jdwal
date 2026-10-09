@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DateSelector } from "./date-selector";
+import { ListPromo } from "./match-promo";
 import { FilterTabs, type MatchFilter } from "./filter-tabs";
 import { LeagueGroup } from "./league-group";
 import { LivePill } from "./live-badge";
@@ -438,13 +439,16 @@ export function MatchesView({ initialPayload }: MatchesViewProps) {
             {emptyMessage}
           </p>
         ) : (
-          groups.map((group) => (
-            <LeagueGroup
-              key={group.league.id}
-              group={group}
-              nowUnix={nowUnix}
-              reportedAtUnix={payload.nowUnix}
-            />
+          groups.map((group, index) => (
+            <Fragment key={group.league.id}>
+              <LeagueGroup
+                group={group}
+                nowUnix={nowUnix}
+                reportedAtUnix={payload.nowUnix}
+              />
+              {/* Sponsored banner after the second competition (or the only one). */}
+              {(index === 1 || (groups.length === 1 && index === 0)) && <ListPromo />}
+            </Fragment>
           ))
         )}
       </main>
